@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英単語マスター Pro (復習モード完全版)</title>
+    <style>
+        :root { --primary: #4CAF50; --bg: #eef2f3; --review: #f39c12; --listen: #9b59b6; --time: #e74c3c; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; position: relative; }
+        .header-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+        .top-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .mode-selector { display: flex; background: #ddd; border-radius: 12px; padding: 4px; gap: 4px; flex-grow: 1; flex-wrap: wrap; }
+        .mode-option { flex: 1; min-width: 45px; padding: 8px 5px; font-size: 0.75rem; border-radius: 8px; cursor: pointer; font-weight: bold; color: #666; transition: 0.3s; text-align: center; border: none; background: transparent; }
+        .mode-option.active { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .mode-option.review-mode.active { color: var(--review); }
+        .review-count-badge { background: var(--review); color: white; border-radius: 10px; padding: 1px 5px; font-size: 0.65rem; margin-left: 2px; }
+        #time-tri-btn { font-size: 1.2rem; cursor: pointer; border-radius: 8px; }
+        #time-tri-btn.active { color: var(--time); background: #ffdada; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .timer-display { font-size: 1.2rem; font-weight: bold; color: var(--time); visibility: hidden; min-width: 60px; }
+        .highscore-display { font-size: 0.8rem; color: #7f8c8d; margin-top: 5px; background: #f9f9f9; padding: 4px; border-radius: 8px; }
+        .word-display { font-size: 2.2rem; font-weight: bold; margin-bottom: 1rem; color: #2c3e50; min-height: 3.5rem; display: flex; justify-content: center; align-items: center; }
+        .options-grid { display: grid; gap: 10px; }
+        .option-btn { padding: 14px; border: 2px solid #ddd; border-radius: 12px; background: white; cursor: pointer; font-size: 1rem; font-weight: bold; transition: 0.2s; }
+        .option-btn:hover { background: #f0f0f0; }
+        .option-btn.correct { background: #d4edda !important; border-color: #28a745 !important; color: #155724 !important; }
+        .option-btn.wrong { background: #f8d7da !important; border-color: #dc3545 !important; color: #721c24 !important; }
+        #spell-input-area { display: none; }
+        #spell-input { width: 100%; padding: 14px; font-size: 1.4rem; border: 2px solid #ddd; border-radius: 12px; text-align: center; margin-bottom: 10px; box-sizing: border-box; }
+        .hint-btn { background: none; border: 1px solid #aaa; padding: 5px 15px; border-radius: 20px; cursor: pointer; font-size: 0.8rem; color: #666; margin-bottom: 10px; }
+        .speaker-btn { background: #f0f0f0; border: 2px solid #ddd; border-radius: 50%; width: 55px; height: 55px; cursor: pointer; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; border: none; }
+        .btn-main { padding: 15px 25px; cursor: pointer; background: var(--primary); color: white; border: none; border-radius: 12px; width: 100%; margin-top: 20px; font-size: 1.1rem; font-weight: bold; }
+        #feedback { margin-top: 10px; font-weight: bold; min-height: 24px; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+<div class="card" id="game-card">
+    <div id="game-content">
+        <div class="header-controls">
+            <div class="top-row">
+                <div class="mode-selector">
+                    <button class="mode-option active" id="btn-choice" onclick="changeMode('choice')">4択</button>
+                    <button class="mode-option" id="btn-spell" onclick="changeMode('spell')">書く</button>
+                    <button class="mode-option" id="btn-listen" onclick="changeMode('listen')">聞く</button>
+                    <button class="mode-option review-mode" id="btn-review" onclick="changeMode('review')">
+                        復習<span id="review-badge" class="review-count-badge">0</span>
+                    </button>
+                    <button class="mode-option" id="time-tri-btn" onclick="toggleTimeTrial()">⏱</button>
+                </div>
+                <div id="timer" class="timer-display">10:00</div>
+            </div>
+            <div class="highscore-display">最高記録: <span id="high-score">0</span></div>
+        </div>
+        <div class="score-board" style="color:#7f8c8d; margin-bottom:5px; font-size: 0.9rem; font-weight: bold;">
+            スコア: <span id="score" style="color:var(--primary);">0</span>
+        </div>
+        <div class="word-display"><span id="target-display">準備中...</span></div>
+        
+        <button id="speaker-icon" class="speaker-btn" onclick="retrySpeak()">🔊</button>
+        
+        <div class="options-grid" id="options"></div>
+        
+        <div id="spell-input-area">
+            <input type="text" id="spell-input" placeholder="スペルを入力..." autocomplete="off">
+            <br>
+            <button class="hint-btn" onclick="showHint()">💡 ヒント</button>
+            <div id="hint-text" style="font-size: 0.8rem; color: #f39c12; letter-spacing: 2px; height: 20px;"></div>
+        </div>
+        
+        <div id="feedback"></div>
+    </div>
+</div>
+
+<script>
+    const masterWordList = [
+        { en: "Hello", ja: "こんにちは" }, { en: "Thank you", ja: "ありがとう" },
+        { en: "Excuse me", ja: "すみません" }, { en: "I'm sorry", ja: "ごめんなさい" },
+        { en: "Good morning", ja: "おはよう" }, { en: "Good night", ja: "おやすみなさい" },
+        { en: "Nice to meet you", ja: "はじめまして" }, { en: "How are you?", ja: "お元気ですか？" },
+        { en: "Please", ja: "お願いします" }, { en: "my", ja: "私の" },
+        { en: "me", ja: "私を" }, { en: "mine", ja: "私のもの" },
+        { en: "yours", ja: "あなたのもの" }, { en: "his", ja: "彼の" },
+        { en: "she", ja: "彼女" }, { en: "her", ja: "彼女の" },
+        { en: "hers", ja: "彼女のもの" }, { en: "it", ja: "それ" },
+        { en: "its", ja: "それの" }, { en: "they", ja: "彼ら、それら" },
+        { en: "their", ja: "彼らの、それらの" }, { en: "them", ja: "彼らを、それらを" },
+        { en: "theirs", ja: "彼らのもの、それらのもの" }, { en: "we", ja: "私たち" },
+        { en: "our", ja: "私たちの" }, { en: "us", ja: "私たちを" },
+        { en: "ours", ja: "私たちのもの" }, { en: "what", ja: "何" },
+        { en: "where", ja: "どこ" }, { en: "when", ja: "いつ" },
+        { en: "who", ja: "誰" }, { en: "whose", ja: "誰の" },
+        { en: "which", ja: "どちらの" }, { en: "how", ja: "どうやって" },
+        { en: "sunny", ja: "晴れている" }, { en: "cloudy", ja: "曇っている" }, 
+        { en: "rainy", ja: "雨が降っている" }, { en: "snowy", ja: "雪が降っている" }, 
+        { en: "friend", ja: "友だち" }, { en: "apple", ja: "りんご" },
+        { en: "book", ja: "本" }, { en: "school", ja: "学校" },
+        { en: "student", ja: "生徒" }, { en: "teacher", ja: "先生" },
+        { en: "dog", ja: "犬" }, { en: "cat", ja: "猫" },
+        { en: "water", ja: "水" }, { en: "food", ja: "食べ物" },
+        { en: "happy", ja: "幸せな" }, { en: "sad", ja: "悲しい" },
+        { en: "big", ja: "大きい" }, { en: "small", ja: "小さい" }
+    ];
+
+    let currentActiveList = [], currentIndex = 0, score = 0, isChecking = false;
+    let currentMode = 'choice', isTimeTrial = false, timerInterval = null, timeLeft = 600;
+    let reviewList = [];
+
+    // localStorage読み込み
+    function loadData() {
+        const saved = localStorage.getItem('review_words');
+        reviewList = saved ? JSON.parse(saved) : [];
+        updateReviewBadge();
+        updateHighScoreDisplay();
+    }
+
+    function saveData() {
+        localStorage.setItem('review_words', JSON.stringify(reviewList));
+    }
+
+    function updateReviewBadge() {
+        const badge = document.getElementById('review-badge');
+        badge.textContent = reviewList.length;
+        badge.style.display = reviewList.length > 0 ? "inline" : "none";
+    }
+
+    function shuffle(array) {
+        return array.map(a => ({ sort: Math.random(), value: a }))
+                    .sort((a, b) => a.sort - b.sort)
+                    .map(a => a.value);
+    }
+
+    function changeMode(mode) {
+        if (mode === 'review' && reviewList.length === 0) {
+            alert("復習リストは現在空です。問題を間違えると自動的に追加されます！");
+            return;
+        }
+        currentMode = mode;
+        
+        // UI更新
+        document.querySelectorAll('.mode-option').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-${mode}`).classList.add('active');
+        
+        updateHighScoreDisplay();
+        resetProgress();
+    }
+
+    function toggleTimeTrial() {
+        isTimeTrial = !isTimeTrial;
+        document.getElementById('timer').style.visibility = isTimeTrial ? 'visible' : 'hidden';
+        document.getElementById('time-tri-btn').classList.toggle('active');
+        if(isTimeTrial) startTimer(); else stopTimer();
+        resetProgress();
+    }
+
+    function startTimer() { 
+        stopTimer(); 
+        timeLeft = 600; 
+        updateTimerText(); 
+        timerInterval = setInterval(() => { 
+            timeLeft--; 
+            updateTimerText(); 
+            if(timeLeft <= 0) { stopTimer(); finish("タイムアップ！"); } 
+        }, 1000); 
+    }
+    
+    function stopTimer() { clearInterval(timerInterval); }
+    function updateTimerText() { 
+        const m = Math.floor(timeLeft / 60); 
+        const s = timeLeft % 60; 
+        document.getElementById('timer').textContent = `${m}:${s.toString().padStart(2, '0')}`; 
+    }
+    
+    function updateHighScoreDisplay() { 
+        const key = `hs_${currentMode}_${isTimeTrial}`;
+        document.getElementById('high-score').textContent = localStorage.getItem(key) || 0; 
+    }
+
+    function resetProgress() {
+        if (currentMode === 'review') {
+            if (reviewList.length === 0) {
+                currentMode = 'choice';
+                document.getElementById('btn-choice').classList.add('active');
+                document.getElementById('btn-review').classList.remove('active');
+                currentActiveList = shuffle(masterWordList);
+            } else {
+                currentActiveList = shuffle(reviewList);
+            }
+        } else {
+            currentActiveList = shuffle(masterWordList);
+        }
+        currentIndex = 0; score = 0;
+        document.getElementById('score').textContent = "0";
+        showQuestion();
+    }
+
+    function showQuestion() {
+        if (currentActiveList.length === 0) {
+            finish("リストが空です！");
+            return;
+        }
+        if (currentIndex >= currentActiveList.length) {
+            if(isTimeTrial) { 
+                currentActiveList = shuffle(currentMode === 'review' ? reviewList : masterWordList); 
+                currentIndex = 0; 
+            } else { 
+                finish("全問終了！"); return; 
+            }
+        }
+        
+        isChecking = false;
+        const q = currentActiveList[currentIndex];
+        document.getElementById('feedback').textContent = "";
+        document.getElementById('hint-text').textContent = "";
+        
+        const display = document.getElementById('target-display');
+        const inputArea = document.getElementById('spell-input-area');
+        const optionsArea = document.getElementById('options');
+        const speaker = document.getElementById('speaker-icon');
+
+        if (currentMode === 'spell') {
+            display.textContent = q.ja; 
+            speaker.style.display = 'none'; 
+            inputArea.style.display = 'block'; 
+            optionsArea.style.display = 'none';
+            const input = document.getElementById('spell-input'); 
+            input.value = ""; 
+            input.disabled = false; 
+            setTimeout(() => input.focus(), 50);
+        } else if (currentMode === 'listen') {
+            display.textContent = "???"; 
+            speaker.style.display = 'flex'; 
+            inputArea.style.display = 'none'; 
+            optionsArea.style.display = 'grid';
+            speak(q.en); setupOptions(q);
+        } else {
+            // choice または review
+            display.textContent = q.en; 
+            speaker.style.display = 'flex'; 
+            inputArea.style.display = 'none'; 
+            optionsArea.style.display = 'grid';
+            speak(q.en); setupOptions(q);
+        }
+    }
+
+    function setupOptions(q) {
+        const others = masterWordList.filter(w => w.ja !== q.ja);
+        const opts = shuffle([q.ja, ...shuffle(others).slice(0, 3).map(w => w.ja)]);
+        const container = document.getElementById('options');
+        container.innerHTML = '';
+        opts.forEach(o => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn'; btn.textContent = o;
+            btn.onclick = () => check(o === q.ja, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    function check(isCorrect, targetElement = null) {
+        if(isChecking) return;
+        isChecking = true;
+        const q = currentActiveList[currentIndex];
+        
+        if (currentMode === 'listen') document.getElementById('target-display').textContent = q.en;
+
+        const feedback = document.getElementById('feedback');
+        if(isCorrect) {
+            if(targetElement) targetElement.classList.add('correct');
+            score++; 
+            document.getElementById('score').textContent = score;
+            feedback.innerHTML = `<span style="color:var(--primary)">✨ 正解: ${q.en}</span>`;
+            
+            // 復習モードで正解したらリストから除去
+            if (currentMode === 'review') {
+                reviewList = reviewList.filter(item => item.en !== q.en);
+                saveData();
+                updateReviewBadge();
+            }
+        } else {
+            if(targetElement) targetElement.classList.add('wrong');
+            feedback.innerHTML = `<span style="color:var(--time)">❌ 不正解: ${q.en}</span>`;
+            
+            // 間違えたら復習リストへ（重複禁止）
+            if (!reviewList.find(item => item.en === q.en)) {
+                reviewList.push(q);
+                saveData();
+                updateReviewBadge();
+            }
+        }
+        
+        speak(q.en);
+        setTimeout(() => { currentIndex++; showQuestion(); }, isCorrect ? 800 : 2000);
+    }
+
+    function showHint() {
+        const q = currentActiveList[currentIndex];
+        if(!q) return;
+        const hint = q.en[0] + "_".repeat(q.en.length - 2) + q.en.slice(-1);
+        document.getElementById('hint-text').textContent = hint;
+    }
+
+    function speak(text) {
+        if (!('speechSynthesis' in window)) return;
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'en-US';
+        u.rate = 0.9; 
+        speechSynthesis.speak(u);
+    }
+
+    function retrySpeak() { if (currentActiveList[currentIndex]) speak(currentActiveList[currentIndex].en); }
+
+    document.getElementById('spell-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const val = document.getElementById('spell-input').value.trim().toLowerCase();
+            if(val === "") return;
+            check(val === currentActiveList[currentIndex].en.toLowerCase());
+        }
+    });
+
+    function finish(msg) {
+        stopTimer();
+        const key = `hs_${currentMode}_${isTimeTrial}`;
+        const oldHS = parseInt(localStorage.getItem(key) || 0);
+        if(score > oldHS) localStorage.setItem(key, score);
+        
+        document.getElementById('game-card').innerHTML = `
+            <h2>${msg}</h2>
+            <div style="font-size:2.5rem; color:var(--primary); font-weight:bold; margin: 20px 0;">${score}点</div>
+            <p>今回の最高記録: ${Math.max(score, oldHS)}</p>
+            <div style="background:#fff3e0; padding:15px; border-radius:10px; margin-top:20px;">
+                <p style="color:#e67e22; margin:0; font-weight:bold;">復習が必要な単語: ${reviewList.length} 件</p>
+            </div>
+            <button onclick="location.reload()" class="btn-main">トップに戻る</button>
+        `;
+    }
+
+    // 起動
+    window.onload = () => {
+        loadData();
+        resetProgress();
+    };
+</script>
+</body>
+</html>
