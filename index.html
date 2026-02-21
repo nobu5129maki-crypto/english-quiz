@@ -23,14 +23,25 @@
         .word-display { font-size: 2.2rem; font-weight: bold; margin-bottom: 1rem; color: #2c3e50; min-height: 3.5rem; display: flex; justify-content: center; align-items: center; }
         .options-grid { display: grid; gap: 10px; }
         .option-btn { padding: 14px; border: 2px solid #ddd; border-radius: 12px; background: white; cursor: pointer; font-size: 1rem; font-weight: bold; transition: 0.2s; }
-        .option-btn.correct { background: #d4edda !important; border-color: #28a745 !important; color: #155724 !important; }
+        .option-btn.correct { background: #d4edda !important; border-color: #28a745 !important; color: #155724 !important; animation: correctPulse 0.5s ease; }
         .option-btn.wrong { background: #f8d7da !important; border-color: #dc3545 !important; color: #721c24 !important; }
+        @keyframes correctPulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); box-shadow: 0 0 20px rgba(40,167,69,0.6); } 100% { transform: scale(1); } }
         #spell-input-area { display: none; }
         #spell-input { width: 100%; padding: 14px; font-size: 1.4rem; border: 2px solid #ddd; border-radius: 12px; text-align: center; margin-bottom: 10px; box-sizing: border-box; }
         .hint-btn { background: none; border: 1px solid #aaa; padding: 5px 15px; border-radius: 20px; cursor: pointer; font-size: 0.8rem; color: #666; margin-bottom: 10px; }
         .speaker-btn { background: #f0f0f0; border-radius: 50%; width: 55px; height: 55px; cursor: pointer; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; border: none; }
         .btn-main { padding: 15px 25px; cursor: pointer; background: var(--primary); color: white; border: none; border-radius: 12px; width: 100%; margin-top: 20px; font-size: 1.1rem; font-weight: bold; }
         #feedback { margin-top: 10px; font-weight: bold; min-height: 24px; font-size: 1.1rem; }
+        .success-overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(76,175,80,0.15); z-index: 100; animation: successFade 0.4s ease; pointer-events: none; }
+        @keyframes successFade { 0% { opacity: 0; } 100% { opacity: 1; } }
+        .success-message { font-size: 2rem; font-weight: bold; color: #2e7d32; text-shadow: 0 0 20px rgba(255,255,255,0.8); animation: successBounce 0.6s ease; }
+        @keyframes successBounce { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 80% { transform: scale(0.95); } 100% { transform: scale(1); } }
+        .success-emoji { font-size: 4rem; line-height: 1; margin-bottom: 8px; animation: emojiPop 0.5s ease 0.1s both; }
+        @keyframes emojiPop { 0% { transform: scale(0); rotate: -20deg; } 70% { transform: scale(1.3); rotate: 10deg; } 100% { transform: scale(1); rotate: 0deg; } }
+        .success-word { font-size: 1.3rem; color: #1b5e20; margin-top: 5px; font-weight: 600; }
+        .confetti { position: fixed; top: 0; width: 10px; height: 10px; pointer-events: none; z-index: 99; }
+        .confetti span { display: block; width: 100%; height: 100%; border-radius: 2px; animation: confettiFall 1.2s ease-out forwards; }
+        @keyframes confettiFall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
     </style>
 </head>
 <body>
@@ -106,6 +117,7 @@
     let currentActiveList = [], currentIndex = 0, score = 0, isChecking = false;
     let currentMode = 'choice', isTimeTrial = false, timerInterval = null, timeLeft = 600;
     let reviewList = [];
+    let selectedVoice = null; // ネイティブ発音用の最適な音声
 
     // localStorage初期化
     function loadData() {
@@ -262,6 +274,30 @@
         });
     }
 
+    function showSuccessOverlay(praise, word) {
+        const colors = ['#4CAF50', '#8BC34A', '#FFEB3B', '#FF9800', '#E91E63'];
+        for (let i = 0; i < 15; i++) {
+            const c = document.createElement('div');
+            c.className = 'confetti';
+            c.style.left = Math.random() * 100 + 'vw';
+            const span = document.createElement('span');
+            span.style.background = colors[Math.floor(Math.random() * colors.length)];
+            span.style.animationDelay = (Math.random() * 0.3) + 's';
+            c.appendChild(span);
+            document.body.appendChild(c);
+            setTimeout(() => c.remove(), 1300);
+        }
+        const overlay = document.createElement('div');
+        overlay.className = 'success-overlay';
+        overlay.innerHTML = `
+            <div class="success-emoji">🎉</div>
+            <div class="success-message">${praise}</div>
+            <div class="success-word">${word}</div>
+        `;
+        document.body.appendChild(overlay);
+        setTimeout(() => overlay.remove(), 700);
+    }
+
     function check(isCorrect, targetElement = null) {
         if(isChecking) return;
         isChecking = true;
@@ -274,7 +310,12 @@
             if(targetElement) targetElement.classList.add('correct');
             score++; 
             document.getElementById('score').textContent = score;
-            feedback.innerHTML = `<span style="color:var(--primary)">✨ 正解: ${q.en}</span>`;
+            
+            // 正解時の盛大なフィードバック
+            const praises = ['やったね！', 'すごい！', '完璧！', 'ナイス！', 'その調子！', 'さすが！'];
+            const praise = praises[Math.floor(Math.random() * praises.length)];
+            showSuccessOverlay(praise, q.en);
+            feedback.innerHTML = `<span style="color:var(--primary); font-size:1.2rem;">✨ 正解: ${q.en}</span>`;
             
             if (currentMode === 'review') {
                 reviewList = reviewList.filter(item => item.en !== q.en);
@@ -293,7 +334,7 @@
         }
         
         speak(q.en);
-        setTimeout(() => { currentIndex++; showQuestion(); }, isCorrect ? 800 : 2000);
+        setTimeout(() => { currentIndex++; showQuestion(); }, isCorrect ? 1100 : 2000);
     }
 
     function showHint() {
@@ -303,12 +344,42 @@
         document.getElementById('hint-text').textContent = hint;
     }
 
+    // ネイティブに近い英語音声を選択（en-US優先、高品質音声を優先）
+    function selectBestEnglishVoice() {
+        const voices = speechSynthesis.getVoices();
+        const enVoices = voices.filter(v => v.lang.startsWith('en'));
+        if (enVoices.length === 0) return null;
+        // 高品質ネイティブ音声の優先リスト（Chrome/Edge/Safari対応）
+        const preferredNames = ['Google US English', 'Microsoft Zira', 'Microsoft David', 'Samantha', 'Alex', 'Karen', 'Daniel', 'Mark'];
+        for (const name of preferredNames) {
+            const v = enVoices.find(x => x.name.includes(name));
+            if (v) return v;
+        }
+        // en-US を優先、次に en-GB
+        const us = enVoices.find(v => v.lang === 'en-US');
+        if (us) return us;
+        const gb = enVoices.find(v => v.lang === 'en-GB');
+        if (gb) return gb;
+        return enVoices[0];
+    }
+
+    function initVoices() {
+        const voices = speechSynthesis.getVoices();
+        if (voices.length > 0 && !selectedVoice) {
+            selectedVoice = selectBestEnglishVoice();
+        }
+    }
+
     function speak(text) {
         if (!('speechSynthesis' in window)) return;
         speechSynthesis.cancel();
+        initVoices(); // 音声が未読み込みの場合に備える
         const u = new SpeechSynthesisUtterance(text);
         u.lang = 'en-US';
-        u.rate = 0.9; 
+        u.rate = 0.95;  // ややゆっくりで聞き取りやすく、自然な速度
+        u.pitch = 1.0;  // 自然なピッチ
+        u.volume = 1.0;
+        if (selectedVoice) u.voice = selectedVoice;
         speechSynthesis.speak(u);
     }
 
@@ -337,6 +408,12 @@
             </div>
             <button onclick="location.reload()" class="btn-main">トップに戻る</button>
         `;
+    }
+
+    // 音声リストの非同期読み込みに対応
+    if ('speechSynthesis' in window) {
+        speechSynthesis.onvoiceschanged = initVoices;
+        initVoices(); // 既に読み込み済みの場合
     }
 
     // 即時実行
