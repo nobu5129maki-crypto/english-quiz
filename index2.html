@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英単語マスター Pro (フル機能版)</title>
+    <style>
+        :root { --primary: #4CAF50; --bg: #eef2f3; --review: #f39c12; --listen: #9b59b6; --time: #e74c3c; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; position: relative; z-index: 20; }
+        .header-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+        .top-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .mode-selector { display: flex; background: #ddd; border-radius: 12px; padding: 4px; gap: 4px; flex-grow: 1; }
+        .mode-option { flex: 1; padding: 8px 5px; font-size: 0.8rem; border-radius: 8px; cursor: pointer; font-weight: bold; color: #666; transition: 0.3s; }
+        .mode-option.active { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #time-tri-btn { font-size: 1.4rem; padding: 2px 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        #time-tri-btn.active { color: var(--time); background: #ffdada; animation: pulse 1.5s infinite; border-radius: 8px; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .timer-display { font-size: 1.4rem; font-weight: bold; color: var(--time); visibility: hidden; min-width: 70px; }
+        .highscore-display { font-size: 0.85rem; color: #7f8c8d; margin-top: 5px; background: #f9f9f9; padding: 4px; border-radius: 8px; }
+        .word-display { font-size: 2.5rem; font-weight: bold; margin-bottom: 1rem; color: #2c3e50; min-height: 3.5rem; display: flex; justify-content: center; align-items: center; }
+        .options-grid { display: grid; gap: 10px; }
+        .option-btn { padding: 16px; border: 2px solid #ddd; border-radius: 12px; background: white; cursor: pointer; font-size: 1.1rem; font-weight: bold; }
+        .option-btn.correct { background: #d4edda; border-color: #28a745; color: #155724; }
+        .option-btn.wrong { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+        #spell-input-area { display: none; }
+        #spell-input { width: 85%; padding: 14px; font-size: 1.4rem; border: 2px solid #ddd; border-radius: 12px; text-align: center; margin-bottom: 10px; }
+        .hint-btn { background: none; border: 1px solid #aaa; padding: 5px 15px; border-radius: 20px; cursor: pointer; font-size: 0.8rem; color: #666; margin-bottom: 10px; }
+        .speaker-btn { background: #f0f0f0; border: 2px solid #ddd; border-radius: 50%; width: 60px; height: 60px; cursor: pointer; font-size: 1.8rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; }
+        .btn-main { padding: 15px 25px; cursor: pointer; background: var(--primary); color: white; border: none; border-radius: 12px; width: 100%; margin-top: 20px; font-size: 1.2rem; font-weight: bold; }
+        #feedback { margin-top: 10px; font-weight: bold; min-height: 24px; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+<div class="card" id="game-card">
+    <div id="game-content">
+        <div class="header-controls">
+            <div class="top-row">
+                <div class="mode-selector">
+                    <div class="mode-option active" onclick="changeMode('choice')">4択</div>
+                    <div class="mode-option" onclick="changeMode('spell')">書く</div>
+                    <div class="mode-option" onclick="changeMode('listen')">聞く</div>
+                    <div class="mode-option" id="time-tri-btn" onclick="toggleTimeTrial()">⏱</div>
+                </div>
+                <div id="timer" class="timer-display">10:00</div>
+            </div>
+            <div class="highscore-display">最高記録: <span id="high-score">0</span></div>
+        </div>
+        <div class="score-board" style="color:#7f8c8d; margin-bottom:5px; font-size: 1rem; font-weight: bold;">
+            スコア: <span id="score" style="color:var(--primary);">0</span>
+        </div>
+        <div class="word-display"><span id="target-display">Start!</span></div>
+        
+        <button id="speaker-icon" class="speaker-btn" onclick="retrySpeak()">🔊</button>
+        
+        <div class="options-grid" id="options"></div>
+        
+        <div id="spell-input-area">
+            <input type="text" id="spell-input" placeholder="スペルを入力..." autocomplete="off">
+            <br>
+            <button class="hint-btn" onclick="showHint()">💡 ヒント</button>
+            <div id="hint-text" style="font-size: 0.9rem; color: #f39c12; letter-spacing: 2px; height: 20px;"></div>
+        </div>
+        
+        <div id="feedback"></div>
+    </div>
+</div>
+
+<script>
+    const masterWordList = [
+                      { en: "Hello", ja: "こんにちは" },
+        { en: "Thank you", ja: "ありがとう" },
+        { en: "Excuse me", ja: "すみません" },
+        { en: "I'm sorry", ja: "ごめんなさい" },
+        { en: "Good morning", ja: "おはよう" },
+        { en: "Good night", ja: "おやすみなさい" },
+        { en: "Nice to meet you", ja: "はじめまして" },
+        { en: "How are you?", ja: "お元気ですか？" },
+        { en: "Please", ja: "お願いします" },
+        { en: "my", ja: "私の" },
+        { en: "me", ja: "私を" },
+        { en: "mine", ja: "私のもの" },
+        { en: "yours", ja: "あなたのもの" },
+        { en: "his", ja: "彼の" },
+        { en: "she", ja: "彼女" },
+        { en: "her", ja: "	彼女の" },
+        { en: "hers", ja: "彼女のもの" },
+        { en: "it", ja: "それ" },
+        { en: "its", ja: "それの" },
+        { en: "they", ja: "彼ら、それら" },
+        { en: "their", ja: "彼らの、それらの" },
+        { en: "them", ja: "彼らを、それらを" },
+        { en: "theirs", ja: "彼らのもの、それらのもの" },
+        { en: "we", ja: "私たち" },
+        { en: "our", ja: "	私たちの" },
+        { en: "us", ja: "私たちを" },
+        { en: "ours", ja: "私たちのもの" },
+        { en: "what", ja: "何" },
+        { en: "what color", ja: "何色" },
+        { en: "what sports", ja: "何のスポーツ" },
+        { en: "wahat subject", ja: "何の科目" },
+         { en: "what day is it today ?", ja: "今日は何曜日？" },
+          { en: "what's your favorite ~ ? ", ja: "あなたの好きな～はなんですか？" },
+           { en: "where", ja: "どこ" },
+            { en: "when", ja: "いつ" },
+             { en: "who", ja: "誰" },
+      { en: "whose", ja: "誰の" },
+       { en: "which", ja: "どちらの" },
+        { en: "how", ja: "どうやって" },
+         { en: "How do you get to ~ ?", ja: "どうやって～へ行きますか？" },
+          { en: "How are you?", ja: "元気ですか？" },
+           { en: "How old", ja: "何歳" },
+            { en: "How much", ja: "いくら" },
+              { en: "How many ?", ja: "いくつ" },  
+       { en: "How about ~ ?", ja: "～はどうですか？" },  
+         { en: "how tall", ja: "どのくらいの高さ" },  
+           { en: "how long", ja: "どのくらいの長さ" },  
+             { en: "one o'clock", ja: "1時" },  
+               { en: "two o'clock", ja: "2時" },  
+                 { en: "three o'clock", ja: "3時" },                   
+       { en: "four o'clock", ja: "4時" },  
+         { en: "five o'clock", ja: "5時" },  
+           { en: "six o'clock", ja: "6時" },  
+             { en: "seven o'clock", ja: "7時" },
+               { en: "eight o'clock", ja: "8時" },
+        { en: "nine o'clock", ja: "9時" },
+          { en: "ten o'clock", ja: "10時" },
+            { en: "eleven o'clock", ja: "11時" },
+              { en: "twelve o'clock", ja: "12時" },
+                { en: "minute", ja: "分" },
+       { en: "hour", ja: "時間" },
+         { en: "day", ja: "日" },
+           { en: "week", ja: "週" },
+             { en: "month", ja: "月" },
+               { en: "year", ja: "年" },
+                 { en: "today", ja: "今日" },
+       { en: "weekend", ja: "週末" },
+         { en: "morning", ja: "朝/午前中" },
+           { en: "afternoon", ja: "午後" },
+             { en: "evening", ja: "晩" },
+               { en: "night", ja: "夜" },
+       { en: "midnight", ja: "深夜" },
+         { en: "birthday", ja: "誕生日" },
+           { en: "Monday", ja: "月曜日" },
+             { en: "Tuesday", ja: "火曜日" },
+               { en: "Wednesday", ja: "水曜日" },
+       { en: "Thursday", ja: "木曜日" },
+         { en: "Friday", ja: "金曜日" },
+           { en: "Saturday", ja: "土曜日" },
+             { en: "Sunday", ja: "日曜日" },
+               { en: "January", ja: "1月" },
+                 { en: "February", ja: "2月" },
+       { en: "March", ja: "3月" },
+         { en: "April", ja: "4月" },
+           { en: "May", ja: "5月" },
+             { en: "June", ja: "6月" },
+               { en: "July", ja: "7月" },
+                 { en: "August", ja: "8月" },
+        { en: "September", ja: "9月" },
+          { en: "October", ja: "10月" },
+            { en: "November", ja: "11月" },
+              { en: "December", ja: "12月" },
+     { en: "spring", ja: "春" },   
+     { en: "summer", ja: "夏" },   
+     { en: "automn", ja: "秋" },   
+     { en: "fall", ja: "秋" },   
+     { en: "winter", ja: "冬" },   
+     { en: "Japan", ja: "日本" },   
+     { en: "America", ja: "アメリカ" },   
+     { en: "Canada", ja: "カナダ" },   
+     { en: "Australia", ja: "オーストラリア" },   
+     { en: "Spain", ja: "スペイン" },   
+     { en: "China", ja: "中国" },   
+     { en: "France", ja: "フランス" },   
+     { en: "Germany", ja: "ドイツ" },   
+     { en: "Brazil", ja: "ブラジル" },   
+     { en: "country", ja: "国" },   
+     { en: "Africa", ja: "アフリカ" },   
+     { en: "Asia", ja: "アジア" },   
+     { en: "Europe", ja: "ヨーロッパ" },   
+     { en: "place", ja: "場所" },   
+     { en: "station", ja: "駅" },   
+     { en: "airport", ja: "空港" },   
+     { en: "park", ja: "公園" },   
+     { en: "cityhall", ja: "市役所" },   
+     { en: "hospital", ja: "病院" },   
+     { en: "post office", ja: "郵便局" },   
+     { en: "store", ja: "店" },   
+     { en: "supermarket", ja: "スーパー" },   
+     { en: "mountain", ja: "山" },   
+     { en: "sea", ja: "海" },   
+     { en: "restaurant", ja: "レストラン" },   
+     { en: "home", ja: "家/故郷" },   
+     { en: "house", ja: "一軒家" },   
+     { en: "room", ja: "部屋" },   
+     { en: "bedroom", ja: "寝室" },   
+     { en: "kitchen", ja: "台所" },   
+     { en: "bathroom", ja: "（トイレつきの）お風呂" },   
+     { en: "classroom", ja: "教室" },   
+     { en: "gym", ja: "体育館" },   
+     { en: "sunny", ja: "晴れている" }, 
+     { en: "cloudy", ja: "曇っている" }, 
+     { en: "rainy", ja: "雨が降っている" }, 
+     { en: "snowy", ja: "雪が降っている" }, 
+     { en: "foggy", ja: "霧がかっている" }, 
+     { en: "windy", ja: "風が強い" }, 
+     { en: "sunshine", ja: "晴天" }, 
+     { en: "cloud", ja: "雲" }, 
+     { en: "rain", ja: "雨/雨が降る" }, 
+     { en: "shower", ja: "雨/にわか雨" }, 
+     { en: "snow", ja: "雪/雪が降る" }, 
+     { en: "fog", ja: "霧" }, 
+     { en: "clearup", ja: "晴れる" }, 
+     { en: "boy", ja: "男の子" }, 
+     { en: "children", ja: "子どもたち" }, 
+     { en: "dancer", ja: "おどる人" }, 
+      { en: "driver", ja: "運転手" }, 
+     { en: "doctor", ja: "医者/博士" }, 
+     { en: "friend", ja: "友だち" }, 
+     { en: "girl", ja: "女の子" }, 
+     { en: "job", ja: "仕事" }, 
+     { en: "man", ja: "男性" }, 
+     { en: "officer", ja: "警官/役人" }, 
+     { en: "parent", ja: "親" }, 
+     { en: "brother", ja: "兄弟" }, 
+     { en: "sister", ja: "姉妹" }, 
+     { en: "grandfather", ja: "おじいさん" }, 
+     { en: "grandmother", ja: "	おばあさん" }, 
+     { en: "cousin", ja: "いとこ" }, 
+     { en: "person", ja: "人" },
+      { en: "people", ja: "人々" }, 
+     { en: "woman", ja: "女性" }, 
+     { en: "worker", ja: "働く人" }, 
+     { en: "basketball", ja: "バスケットボール" }, 
+     { en: "badminton", ja: "バドミントン" }, 
+     { en: "tabletennis", ja: "卓球" }, 
+     { en: "swimming", ja: "水泳" }, 
+     { en: "marathon", ja: "マラソン" }, 
+     { en: "dinner", ja: "夕食" }, 
+     { en: "month", ja: "月" }, 
+     { en: "color", ja: "色" }, 
+     { en: "family", ja: "家族" }, 
+     { en: "flower", ja: "花" }, 
+     { en: "fruit", ja: "果物" },  
+     { en: "drink", ja: "飲み物" },  
+        { en: "name", ja: "名前" },  
+        { en: "dictionary", ja: "辞書" },  
+        { en: "passport", ja: "パスポート" },  
+            { en: "homework", ja: "宿題" },  
+            { en: "food", ja: "食べ物" },  
+    { en: "animal", ja: "動物" },
+    { en: "box", ja: "箱" },   
+    { en: "watch", ja: "腕時計" },
+    { en: "blackboard", ja: "黒板" },
+    { en: "tea", ja: "お茶" },
+    { en: "calendar", ja: "カレンダー" },
+    { en: "shoes", ja: "靴" },
+    { en: "umbrella", ja: "かさ" },
+     { en: "newspaper", ja: "新聞" },
+    { en: "window", ja: "窓" },
+    { en: "hair", ja: "髪" },
+    { en: "diary", ja: "日記" },
+     { en: "letter", ja: "手紙" },
+    { en: "wall", ja: "壁" },
+    { en: "bird", ja: "鳥" },
+    { en: "doll", ja: "人形" },
+     { en: "grape", ja: "ぶどう" },
+    { en: "camera", ja: "カメラ" },
+    { en: "mouth", ja: "口" },
+    { en: "coin", ja: "硬貨" },
+     { en: "song", ja: "曲" },
+    { en: "music", ja: "音楽" },
+    { en: "garden", ja: "庭" },
+    { en: "idea", ja: "考え/意見" },
+     { en: "art", ja: "芸術" },
+    { en: "number", ja: "数/番号" },
+    { en: "history", ja: "歴史" },
+    { en: "story", ja: "物語/話" },
+     { en: "subject", ja: "	科目" },
+    { en: "plane", ja: "飛行機" },
+    { en: "bread", ja: "パン" },
+    { en: "dish", ja: "皿" },
+     { en: "tree", ja: "木" },
+    { en: "fish", ja: "魚" },
+    { en: "like", ja: "～が好き" },
+    { en: "have", ja: "～を持っている" },
+     { en: "play", ja: "（楽器を）演奏する（ゲームを）プレイする" },
+    { en: "watch", ja: "（テレビなど）見る" },
+    { en: "want", ja: "～が欲しい" },
+    { en: "eat", ja: "～を食べる" },
+     { en: "read", ja: "～を読む" },
+    { en: "see", ja: "～を見る" },
+    { en: "make", ja: "～をつくる" },
+    { en: "come", ja: "来る" },
+     { en: "study", ja: "勉強する" },
+    { en: "get", ja: "～を持つ/手に入れる" },
+    { en: "take", ja: "～をとる" },
+    { en: "write", ja: "～を書く" },
+     { en: "work", ja: "働く" },
+    { en: "use", ja: "～を使う" },
+    { en: "drink", ja: "～を飲む" },
+    { en: "wash", ja: "～を洗う" },
+     { en: "cook", ja: "～を料理する" },
+    { en: "speak	", ja: "～を話す" },
+    { en: "run", ja: "走る" },
+    { en: "sleep", ja: "寝る" },
+     { en: "buy", ja: "～を買う" },
+    { en: "open", ja: "～を開ける・開く" },
+    { en: "swim", ja: "泳ぐ" },
+     { en: "listen", ja: "聴く" },
+    { en: "look", ja: "見る" },
+    { en: "sing", ja: "歌う" },
+     { en: "know", ja: "～を知る" },
+    { en: "sit", ja: "座る" },
+    { en: "clean", ja: "～を掃除する" },
+     { en: "help", ja: "助ける" },
+    { en: "meet", ja: "～に会う" },
+    { en: "walk", ja: "歩く" },
+     { en: "ski", ja: "スキーをする" },
+    { en: "start", ja: "始める" },
+    { en: "talk", ja: "話す" },
+     { en: "teach", ja: "教える" },
+    { en: "think", ja: "考える" },
+    { en: "need", ja: "～が欲しい" },
+     { en: "close", ja: "～を閉める" },
+    { en: "give", ja: "～をあげる・与える" },
+    { en: "stop", ja: "止まる" },
+     { en: "dance", ja: "ダンスする" },
+    { en: "love", ja: "愛する" },
+    { en: "live", ja: "生きる/住む" },
+     { en: "stand", ja: "立つ" },
+    { en: "wait", ja: "待つ" },
+    { en: "put", ja: "～を置く" },
+     { en: "brush", ja: "ブラシをかける" },
+    { en: "ride", ja: "乗る" },
+    { en: "camp", ja: "キャンプをする" },
+     { en: "learn", ja: "～を習う/学ぶ" },
+    { en: "smile	", ja: "笑う" },
+    { en: "begin", ja: "始める" },
+     { en: "enjoy", ja: "～を楽しむ" },
+    { en: "practice", ja: "練習する" },
+    { en: "drive", ja: "～を運転する" },
+     { en: "ask", ja: "お願いする" },
+    { en: "tell", ja: "～を言う" },
+    { en: "fly", ja: "飛ぶ" },
+     { en: "jump", ja: "ジャンプする" },
+    { en: "stay", ja: "とどまる" },
+    { en: "move", ja: "動く" },
+     { en: "turn", ja: "回る" },
+    { en: "visit", ja: "～を訪ねる" },
+    { en: "try", ja: "～をやってみる" },
+    ];
+
+    let currentActiveList = [], currentIndex = 0, score = 0, isChecking = false;
+    let currentMode = 'choice', isTimeTrial = false, timerInterval = null, timeLeft = 600;
+
+    function shuffle(array) {
+        let arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function changeMode(mode) {
+        currentMode = mode;
+        const opts = document.querySelectorAll('.mode-option');
+        opts[0].classList.toggle('active', mode === 'choice');
+        opts[1].classList.toggle('active', mode === 'spell');
+        opts[2].classList.toggle('active', mode === 'listen');
+        updateHighScoreDisplay();
+        resetProgress();
+    }
+
+    function toggleTimeTrial() {
+        isTimeTrial = !isTimeTrial;
+        document.getElementById('timer').style.visibility = isTimeTrial ? 'visible' : 'hidden';
+        document.getElementById('time-tri-btn').classList.toggle('active');
+        if(isTimeTrial) startTimer(); else stopTimer();
+        resetProgress();
+    }
+
+    function startTimer() { stopTimer(); timeLeft = 600; updateTimerText(); timerInterval = setInterval(() => { timeLeft--; updateTimerText(); if(timeLeft <= 0) { stopTimer(); finish("タイムアップ！"); } }, 1000); }
+    function stopTimer() { clearInterval(timerInterval); }
+    function updateTimerText() { const m = Math.floor(timeLeft / 60); const s = timeLeft % 60; document.getElementById('timer').textContent = `${m}:${s.toString().padStart(2, '0')}`; }
+    function updateHighScoreDisplay() { document.getElementById('high-score').textContent = localStorage.getItem(`hs_${currentMode}_${isTimeTrial}`) || 0; }
+
+    function resetProgress() {
+        currentActiveList = shuffle(masterWordList);
+        currentIndex = 0; score = 0;
+        document.getElementById('score').textContent = "0";
+        showQuestion();
+    }
+
+    function showQuestion() {
+        if (currentIndex >= currentActiveList.length) {
+            if(isTimeTrial) { currentActiveList = shuffle(masterWordList); currentIndex = 0; }
+            else { finish("全問終了！"); return; }
+        }
+        isChecking = false;
+        const q = currentActiveList[currentIndex];
+        document.getElementById('feedback').textContent = "";
+        document.getElementById('hint-text').textContent = "";
+        const display = document.getElementById('target-display');
+        const inputArea = document.getElementById('spell-input-area');
+        const optionsArea = document.getElementById('options');
+        const speaker = document.getElementById('speaker-icon');
+
+        if (currentMode === 'spell') {
+            display.textContent = q.ja; speaker.style.display = 'none'; inputArea.style.display = 'block'; optionsArea.style.display = 'none';
+            const input = document.getElementById('spell-input'); input.value = ""; input.disabled = false; input.focus();
+        } else if (currentMode === 'listen') {
+            display.textContent = "???"; speaker.style.display = 'flex'; inputArea.style.display = 'none'; optionsArea.style.display = 'grid';
+            speak(q.en); setupOptions(q);
+        } else {
+            display.textContent = q.en; speaker.style.display = 'flex'; inputArea.style.display = 'none'; optionsArea.style.display = 'grid';
+            speak(q.en); setupOptions(q);
+        }
+    }
+
+    function setupOptions(q) {
+        const others = masterWordList.filter(w => w.ja !== q.ja);
+        const opts = shuffle([q.ja, ...shuffle(others).slice(0, 3).map(w => w.ja)]);
+        const container = document.getElementById('options');
+        container.innerHTML = '';
+        opts.forEach(o => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn'; btn.textContent = o;
+            btn.onclick = () => check(o === q.ja, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    function check(isCorrect, targetElement = null) {
+        if(isChecking) return;
+        isChecking = true;
+        const q = currentActiveList[currentIndex];
+        
+        // リスニング時は正解を表示
+        if (currentMode === 'listen') document.getElementById('target-display').textContent = q.en;
+
+        // 全モード共通：下に正解を表示
+        const feedback = document.getElementById('feedback');
+        if(isCorrect) {
+            if(targetElement) targetElement.classList.add('correct');
+            score++; document.getElementById('score').textContent = score;
+            feedback.innerHTML = `<span style="color:var(--primary)">✨正解: ${q.en}</span>`;
+        } else {
+            if(targetElement) targetElement.classList.add('wrong');
+            feedback.innerHTML = `<span style="color:var(--time)">❌正解: ${q.en}</span>`;
+        }
+        
+        speak(q.en);
+        setTimeout(() => { currentIndex++; showQuestion(); }, isCorrect ? 1000 : 2500);
+    }
+
+    function showHint() {
+        const q = currentActiveList[currentIndex];
+        if(!q) return;
+        // 1文字目 + ... + 最後の文字
+        const hint = q.en[0] + "_".repeat(q.en.length - 2) + q.en.slice(-1);
+        document.getElementById('hint-text').textContent = hint;
+    }
+
+    function speak(text) {
+        if (!('speechSynthesis' in window)) return;
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'en-US'; u.rate = 0.85;
+        speechSynthesis.speak(u);
+    }
+
+    function retrySpeak() { if (currentActiveList[currentIndex]) speak(currentActiveList[currentIndex].en); }
+
+    document.getElementById('spell-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') check(document.getElementById('spell-input').value.trim().toLowerCase() === currentActiveList[currentIndex].en.toLowerCase());
+    });
+
+    function finish(msg) {
+        stopTimer();
+        const key = `hs_${currentMode}_${isTimeTrial}`;
+        const oldHS = parseInt(localStorage.getItem(key) || 0);
+        if(score > oldHS) localStorage.setItem(key, score);
+        document.getElementById('game-card').innerHTML = `<h2>${msg}</h2><p style="font-size:1.8rem; color:var(--primary); font-weight:bold;">スコア: ${score}</p><p>最高記録: ${Math.max(score, oldHS)}</p><button onclick="location.reload()" class="btn-main">もう一度挑戦</button>`;
+    }
+
+    (function init() {
+        updateHighScoreDisplay();
+        resetProgress();
+    })();
+</script>

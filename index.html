@@ -42,6 +42,22 @@
         .confetti { position: fixed; top: 0; width: 10px; height: 10px; pointer-events: none; z-index: 99; }
         .confetti span { display: block; width: 100%; height: 100%; border-radius: 2px; animation: confettiFall 1.2s ease-out forwards; }
         @keyframes confettiFall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+        .fun-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin: 10px 0 6px; }
+        .fun-pill { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: bold; color: #1b5e20; box-shadow: 0 2px 8px rgba(76,175,80,0.18); }
+        .fun-pill.goal-done { background: linear-gradient(135deg, #fff9c4, #fff59d); color: #f57f17; }
+        .fun-emoji { margin-right: 3px; }
+        .coach-tip { font-size: 0.76rem; color: #5d6d7e; margin: 0 0 10px; line-height: 1.45; padding: 10px 12px; background: #f4f6f8; border-radius: 12px; border-left: 4px solid var(--listen); text-align: left; }
+        .combo-display { font-size: 0.95rem; font-weight: bold; color: #d35400; margin-bottom: 6px; min-height: 1.2em; }
+        .xp-float { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); font-weight: bold; color: #2e7d32; font-size: 1.1rem; pointer-events: none; z-index: 101; animation: xpRise 0.9s ease forwards; text-shadow: 0 0 8px #fff; }
+        @keyframes xpRise { 0% { opacity: 0; transform: translate(-50%, 10px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -40px); } }
+        .badge-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) scale(0.95); max-width: 90%; background: #fff; border: 2px solid var(--primary); border-radius: 16px; padding: 12px 18px; box-shadow: 0 8px 28px rgba(0,0,0,0.15); z-index: 102; font-size: 0.88rem; font-weight: bold; color: #2c3e50; animation: badgeIn 0.35s ease forwards; }
+        @keyframes badgeIn { to { transform: translateX(-50%) scale(1); } }
+        .badge-list-btn { background: none; border: 1px dashed #81c784; color: #388e3c; border-radius: 10px; padding: 4px 10px; font-size: 0.72rem; cursor: pointer; margin-top: 4px; font-weight: bold; }
+        .badge-panel { display: none; margin-top: 10px; text-align: left; font-size: 0.75rem; color: #555; background: #fafafa; border-radius: 12px; padding: 10px; max-height: 140px; overflow-y: auto; }
+        .badge-panel.open { display: block; }
+        .badge-row { margin: 4px 0; padding: 4px 0; border-bottom: 1px solid #eee; }
+        .badge-row.unlocked { color: #2e7d32; font-weight: 600; }
+        .badge-row.locked { color: #bbb; }
     </style>
 </head>
 <body>
@@ -63,9 +79,20 @@
             </div>
             <div class="highscore-display">最高記録: <span id="high-score">0</span></div>
         </div>
+        <div class="fun-bar">
+            <div class="fun-pill streak-pill" title="きょう学習すると数字がのびるよ"><span class="fun-emoji">🔥</span><span id="streak-count">0</span>日連続</div>
+            <div class="fun-pill" title="たくさん正解すればレベルアップ！"><span id="level-label">Lv.1</span></div>
+            <div class="fun-pill goal-pill" id="goal-pill" title="きょうのちいさな目標"><span id="goal-text">きょう 0/5</span></div>
+            <div class="fun-pill" title="あつめたばっじ"><span class="fun-emoji">🏅</span><span id="badge-count">0</span></div>
+        </div>
+        <div class="coach-tip" id="coach-tip"></div>
+        <button type="button" class="badge-list-btn" id="badge-toggle" onclick="toggleBadgePanel()">🏅 バッジ一覧</button>
+        <div class="badge-panel" id="badge-panel"></div>
         <div class="score-board" style="color:#7f8c8d; margin-bottom:5px; font-size: 0.9rem; font-weight: bold;">
             スコア: <span id="score" style="color:var(--primary);">0</span>
+            <span id="xp-mini" style="margin-left:8px; color:#9b59b6; font-size:0.82rem;"></span>
         </div>
+        <div class="combo-display" id="combo-display"></div>
         <div class="word-display"><span id="target-display">準備中...</span></div>
         
         <button id="speaker-icon" class="speaker-btn" onclick="retrySpeak()">🔊</button>
@@ -114,6 +141,245 @@
         { en: "big", ja: "大きい" }, { en: "small", ja: "小さい" }
     ];
 
+    const STORAGE_FUN = {
+        streak: 'wm_streak_n',
+        lastActive: 'wm_last_active',
+        xp: 'wm_xp',
+        totalCorrect: 'wm_total_correct',
+        badges: 'wm_badges',
+        goalDate: 'wm_goal_date',
+        goalTarget: 'wm_goal_target',
+        goalProgress: 'wm_goal_prog',
+        modesTried: 'wm_modes_tried',
+        reviewCleared: 'wm_review_cleared',
+    };
+
+    const COACH_TIPS = [
+        '💡 英語は<strong>聞く → 真似る → 話す</strong>の順がコツ。まずはスピーカーで何度も！',
+        '💡 間違えてOK！むしろ<strong>復習リスト</strong>に入った単語が「伸びしろ」です。',
+        '💡 単語は<strong>音で覚える</strong>とリスニングが楽になるよ。口の形も意識してみて。',
+        '💡 <strong>「書く」モード</strong>でスペルを指で空書きすると記憶に残りやすいよ。',
+        '💡 <strong>毎日1セット</strong>だけでも続くと英語がぐっとラクになる。連続日数を見てみてね。',
+        '💡 似た意味の単語は<strong>ペアで覚える</strong>（big / small など）と辞書ヘビーアタックしにくい。',
+        '💡 タイムトライは<strong>焦らず先に意味</strong>→スピード、の2段階でチャレンジ！',
+        '💡 学校のテスト前は<strong>「聞く」→「4択」</strong>の順がおすすめ。耳を慣らしてから選択。',
+    ];
+
+    const BADGE_DEFS = [
+        { id: 'first_star', icon: '⭐', name: 'はじめの一歩', desc: 'はじめて1問せいかいした', test: (s) => s.totalCorrect >= 1 },
+        { id: 'ten_spark', icon: '✨', name: '10こスパーク', desc: 'せいかい数が10こをこえた', test: (s) => s.totalCorrect >= 10 },
+        { id: 'combo_5', icon: '🔥', name: '5コンボ！', desc: 'れんぞく5もんせいかい', test: (s) => s.combo >= 5 },
+        { id: 'triple_play', icon: '🎮', name: 'トリプルチャレンジ', desc: '4択・かく・きくを1つずつプレイした', test: (s) => {
+            const m = s.modesTried || {};
+            return !!(m.choice && m.spell && m.listen);
+        }},
+        { id: 'streak_3', icon: '🔥', name: '3日ストリーク', desc: '3日れんぞくでべんきょうした', test: (s) => s.streak >= 3 },
+        { id: 'daily_goal', icon: '🎯', name: 'きょうのミッション', desc: 'きょうのミニもくひょうをクリアした', test: (s) => s.goalComplete },
+        { id: 'review_hero', icon: '🛡', name: 'ふくしゅうヒーロー', desc: 'ふくしゅうリストを0にしたことがある', test: (s) => s.reviewMaster },
+        { id: 'lv_five', icon: '🌟', name: 'レベル5到達', desc: 'レベル5にたっした', test: (s) => s.level >= 5 },
+    ];
+
+    let sessionCombo = 0;
+
+    function ymdLocal(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+    }
+
+    function yesterdayYmd() {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        return ymdLocal(d);
+    }
+
+    function bumpStreakIfNeeded() {
+        const today = ymdLocal(new Date());
+        const last = localStorage.getItem(STORAGE_FUN.lastActive);
+        let streak = parseInt(localStorage.getItem(STORAGE_FUN.streak) || '0', 10);
+        if (last === today) return;
+        const y = yesterdayYmd();
+        if (last === y) streak += 1;
+        else if (!last) streak = 1;
+        else streak = 1;
+        localStorage.setItem(STORAGE_FUN.streak, String(streak));
+        localStorage.setItem(STORAGE_FUN.lastActive, today);
+    }
+
+    function initDailyGoal() {
+        const today = ymdLocal(new Date());
+        if (localStorage.getItem(STORAGE_FUN.goalDate) !== today) {
+            const target = 3 + Math.floor(Math.random() * 4);
+            localStorage.setItem(STORAGE_FUN.goalDate, today);
+            localStorage.setItem(STORAGE_FUN.goalTarget, String(target));
+            localStorage.setItem(STORAGE_FUN.goalProgress, '0');
+        }
+    }
+
+    function bumpGoalProgress() {
+        initDailyGoal();
+        const t = parseInt(localStorage.getItem(STORAGE_FUN.goalTarget) || '5', 10);
+        let p = parseInt(localStorage.getItem(STORAGE_FUN.goalProgress) || '0', 10);
+        if (p < t) {
+            p++;
+            localStorage.setItem(STORAGE_FUN.goalProgress, String(p));
+        }
+    }
+
+    function isGoalComplete() {
+        initDailyGoal();
+        const t = parseInt(localStorage.getItem(STORAGE_FUN.goalTarget) || '5', 10);
+        const p = parseInt(localStorage.getItem(STORAGE_FUN.goalProgress) || '0', 10);
+        return p >= t;
+    }
+
+    function xpToLevel(xp) {
+        return Math.min(99, Math.floor(xp / 45) + 1);
+    }
+
+    function addXp(amt) {
+        let xp = parseInt(localStorage.getItem(STORAGE_FUN.xp) || '0', 10);
+        const oldLv = xpToLevel(xp);
+        xp += amt;
+        localStorage.setItem(STORAGE_FUN.xp, String(xp));
+        const newLv = xpToLevel(xp);
+        if (newLv > oldLv) showLevelUpToast(newLv);
+    }
+
+    function getUnlockedBadges() {
+        try {
+            return new Set(JSON.parse(localStorage.getItem(STORAGE_FUN.badges) || '[]'));
+        } catch (e) {
+            return new Set();
+        }
+    }
+
+    function unlockBadge(id) {
+        const s = getUnlockedBadges();
+        if (s.has(id)) return false;
+        s.add(id);
+        localStorage.setItem(STORAGE_FUN.badges, JSON.stringify(Array.from(s)));
+        return true;
+    }
+
+    function getFunStats() {
+        const modesTried = JSON.parse(localStorage.getItem(STORAGE_FUN.modesTried) || '{}');
+        const xp = parseInt(localStorage.getItem(STORAGE_FUN.xp) || '0', 10);
+        return {
+            totalCorrect: parseInt(localStorage.getItem(STORAGE_FUN.totalCorrect) || '0', 10),
+            streak: parseInt(localStorage.getItem(STORAGE_FUN.streak) || '0', 10),
+            combo: sessionCombo,
+            xp: xp,
+            level: xpToLevel(xp),
+            modesTried: modesTried,
+            goalComplete: isGoalComplete(),
+            reviewMaster: localStorage.getItem(STORAGE_FUN.reviewCleared) === '1',
+        };
+    }
+
+    function tryUnlockBadges() {
+        const stats = getFunStats();
+        for (const b of BADGE_DEFS) {
+            if (getUnlockedBadges().has(b.id)) continue;
+            if (b.test(stats)) {
+                if (unlockBadge(b.id)) showBadgeToast(b);
+            }
+        }
+    }
+
+    function showBadgeToast(b) {
+        const el = document.createElement('div');
+        el.className = 'badge-toast';
+        el.innerHTML = b.icon + ' <strong>' + b.name + '</strong><br><span style="font-weight:600;font-size:0.82rem;color:#666;">' + b.desc + '</span>';
+        document.body.appendChild(el);
+        setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s'; }, 2600);
+        setTimeout(() => el.remove(), 3000);
+    }
+
+    function showLevelUpToast(lv) {
+        const el = document.createElement('div');
+        el.className = 'badge-toast';
+        el.style.borderColor = '#9b59b6';
+        el.innerHTML = '🎓 <strong>レベルアップ！</strong><br><span style="font-size:0.95rem;color:#6a1b9a;">Lv.' + lv + ' — つぎのステージへいこう</span>';
+        document.body.appendChild(el);
+        setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s'; }, 2200);
+        setTimeout(() => el.remove(), 2600);
+    }
+
+    function showXpFloat(n) {
+        const el = document.createElement('div');
+        el.className = 'xp-float';
+        el.textContent = '+' + n + ' XP';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 950);
+    }
+
+    function refreshFunBar() {
+        initDailyGoal();
+        const streak = localStorage.getItem(STORAGE_FUN.streak) || '0';
+        const xp = parseInt(localStorage.getItem(STORAGE_FUN.xp) || '0', 10);
+        const lv = xpToLevel(xp);
+        const target = parseInt(localStorage.getItem(STORAGE_FUN.goalTarget) || '5', 10);
+        const prog = parseInt(localStorage.getItem(STORAGE_FUN.goalProgress) || '0', 10);
+        const sc = document.getElementById('streak-count');
+        if (sc) sc.textContent = streak;
+        const ll = document.getElementById('level-label');
+        if (ll) ll.textContent = 'Lv.' + lv;
+        const gt = document.getElementById('goal-text');
+        if (gt) gt.textContent = 'きょう ' + Math.min(prog, target) + '/' + target;
+        const gp = document.getElementById('goal-pill');
+        if (gp) gp.classList.toggle('goal-done', prog >= target);
+        const bc = document.getElementById('badge-count');
+        if (bc) bc.textContent = String(getUnlockedBadges().size);
+        const xm = document.getElementById('xp-mini');
+        if (xm) xm.textContent = 'XP ' + xp;
+    }
+
+    function initCoachTip() {
+        const tip = document.getElementById('coach-tip');
+        if (!tip) return;
+        const i = Math.floor(Math.random() * COACH_TIPS.length);
+        tip.innerHTML = COACH_TIPS[i];
+    }
+
+    function markModeTried(mode) {
+        if (mode === 'review' || mode === 'time') return;
+        const o = JSON.parse(localStorage.getItem(STORAGE_FUN.modesTried) || '{}');
+        o[mode] = 1;
+        localStorage.setItem(STORAGE_FUN.modesTried, JSON.stringify(o));
+    }
+
+    function updateComboUI() {
+        const el = document.getElementById('combo-display');
+        if (!el) return;
+        if (sessionCombo >= 2) {
+            const msgs = ['', '', '2 コンボ！', '3 コンボ！いいね！', '4 コンボ！', '5 コンボ！すごすぎ！', '🌈 メガコンボ！'];
+            const t = sessionCombo < msgs.length ? msgs[sessionCombo] : '🔥 ' + sessionCombo + ' れんぞく！';
+            el.textContent = t;
+        } else {
+            el.textContent = '';
+        }
+    }
+
+    function toggleBadgePanel() {
+        const p = document.getElementById('badge-panel');
+        if (!p) return;
+        p.classList.toggle('open');
+        renderBadgePanel();
+    }
+
+    function renderBadgePanel() {
+        const p = document.getElementById('badge-panel');
+        if (!p || !p.classList.contains('open')) return;
+        const have = getUnlockedBadges();
+        p.innerHTML = BADGE_DEFS.map(function (b) {
+            const ok = have.has(b.id);
+            return '<div class="badge-row ' + (ok ? 'unlocked' : 'locked') + '">' +
+                (ok ? b.icon + ' ' : '🔒 ') + '<strong>' + b.name + '</strong> — ' + b.desc + '</div>';
+        }).join('');
+    }
+
     let currentActiveList = [], currentIndex = 0, score = 0, isChecking = false;
     let currentMode = 'choice', isTimeTrial = false, timerInterval = null, timeLeft = 600;
     let reviewList = [];
@@ -129,6 +395,10 @@
         }
         updateReviewBadge();
         updateHighScoreDisplay();
+        initDailyGoal();
+        refreshFunBar();
+        initCoachTip();
+        markModeTried('choice');
     }
 
     function saveData() {
@@ -153,6 +423,7 @@
             alert("復習リストは現在空です。問題を間違えると自動的に追加されます！");
             return;
         }
+        markModeTried(mode);
         currentMode = mode;
         
         // ボタンの見た目を更新
@@ -161,6 +432,8 @@
         if(activeBtn) activeBtn.classList.add('active');
         
         updateHighScoreDisplay();
+        tryUnlockBadges();
+        refreshFunBar();
         resetProgress();
     }
 
@@ -209,6 +482,8 @@
             currentActiveList = shuffle(masterWordList);
         }
         currentIndex = 0; score = 0;
+        sessionCombo = 0;
+        updateComboUI();
         document.getElementById('score').textContent = "0";
         showQuestion();
     }
@@ -316,14 +591,32 @@
             const praise = praises[Math.floor(Math.random() * praises.length)];
             showSuccessOverlay(praise, q.en);
             feedback.innerHTML = `<span style="color:var(--primary); font-size:1.2rem;">✨ 正解: ${q.en}</span>`;
-            
+
+            bumpStreakIfNeeded();
+            let tc = parseInt(localStorage.getItem(STORAGE_FUN.totalCorrect) || '0', 10);
+            tc++;
+            localStorage.setItem(STORAGE_FUN.totalCorrect, String(tc));
+            bumpGoalProgress();
+            addXp(5);
+            showXpFloat(5);
+            sessionCombo++;
+            updateComboUI();
+            refreshFunBar();
+            tryUnlockBadges();
+
             if (currentMode === 'review') {
                 reviewList = reviewList.filter(item => item.en !== q.en);
                 saveData();
                 updateReviewBadge();
+                if (reviewList.length === 0) {
+                    localStorage.setItem(STORAGE_FUN.reviewCleared, '1');
+                    tryUnlockBadges();
+                }
             }
         } else {
             if(targetElement) targetElement.classList.add('wrong');
+            sessionCombo = 0;
+            updateComboUI();
             feedback.innerHTML = `<span style="color:var(--time)">❌ 不正解: ${q.en}</span>`;
             
             if (!reviewList.find(item => item.en === q.en)) {
@@ -398,11 +691,15 @@
         const key = `hs_${currentMode}_${isTimeTrial}`;
         const oldHS = parseInt(localStorage.getItem(key) || 0);
         if(score > oldHS) localStorage.setItem(key, score);
-        
+        const missionLine = isGoalComplete()
+            ? '<p style="color:#f57f17;font-weight:bold;margin:12px 0;">🎯 きょうのミッション達成！あしたもまたね！</p>'
+            : '';
+
         document.getElementById('game-card').innerHTML = `
             <h2>${msg}</h2>
             <div style="font-size:2.5rem; color:var(--primary); font-weight:bold; margin: 20px 0;">${score}点</div>
             <p>今回の最高記録: ${Math.max(score, oldHS)}</p>
+            ${missionLine}
             <div style="background:#fff3e0; padding:15px; border-radius:10px; margin-top:20px;">
                 <p style="color:#e67e22; margin:0; font-weight:bold;">復習が必要な単語: ${reviewList.length} 件</p>
             </div>
