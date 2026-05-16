@@ -2,8 +2,17 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="英単語Pro">
+    <meta name="description" content="ネイティブ音声付き英単語学習アプリ（中学1年向け）">
     <title>英単語マスター Pro (GitHub反映版)</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+    <link rel="apple-touch-icon" href="./icon-192.png">
     <style>
         :root { --primary: #4CAF50; --bg: #eef2f3; --review: #f39c12; --listen: #9b59b6; --time: #e74c3c; }
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -716,6 +725,13 @@
     // 即時実行
     loadData();
     resetProgress();
+
+    // PWA: ホーム画面に追加（Android Chrome / Edge 等）で使えるサービスワーカー
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function () {});
+        });
+    }
 
 </script>
 </body>
