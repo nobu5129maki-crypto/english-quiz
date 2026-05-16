@@ -1,4 +1,4 @@
-const CACHE_NAME = 'word-master-v3';
+const CACHE_NAME = 'word-master-v4';
 const urlsToCache = [
   './',
   './index.html',
