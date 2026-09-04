@@ -267,16 +267,46 @@
     if (voices.length) selectedVoice = selectVoice();
   }
 
-  function speak(text) {
-    if (!("speechSynthesis" in window) || !text) return;
-    speechSynthesis.cancel();
-    initVoices();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-US";
-    u.rate = 0.92;
-    u.pitch = 1;
-    if (selectedVoice) u.voice = selectedVoice;
-    speechSynthesis.speak(u);
+  function speak(text, rate) {
+    return new Promise(function (resolve) {
+      if (!("speechSynthesis" in window) || !text) {
+        resolve();
+        return;
+      }
+      speechSynthesis.cancel();
+      initVoices();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-US";
+      u.rate = rate || 0.92;
+      u.pitch = 1;
+      u.volume = 1;
+      if (selectedVoice) u.voice = selectedVoice;
+      let done = false;
+      const finish = function () {
+        if (done) return;
+        done = true;
+        resolve();
+      };
+      u.onend = finish;
+      u.onerror = finish;
+      const fallback = Math.min(10000, 900 + String(text).length * 85);
+      setTimeout(finish, fallback);
+      speechSynthesis.speak(u);
+    });
+  }
+
+  function speakExample(w) {
+    if (!w || !w.exampleEn) return Promise.resolve();
+    return speak(w.exampleEn, 0.86);
+  }
+
+  function speakThenExample(w) {
+    if (!w) return Promise.resolve();
+    return speak(w.en, 0.92).then(function () {
+      return new Promise(function (r) { setTimeout(r, 380); });
+    }).then(function () {
+      if (w.exampleEn) return speakExample(w);
+    });
   }
 
   function currentWord() {
@@ -432,6 +462,7 @@
     session = null;
     stopRec();
     closeSheet();
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
     renderHome();
     showScreen("home");
   }
@@ -583,7 +614,7 @@
     $("meaning-ja").textContent = w.ja;
     $("meaning-ex-en").textContent = w.exampleEn;
     $("meaning-ex-ja").textContent = w.exampleJa;
-    speak(w.en);
+    speakThenExample(w);
   }
 
   function renderSpeak() {
@@ -646,6 +677,8 @@
     $("write-ja").textContent = w.ja;
     $("write-hint").textContent = "";
     $("write-feedback").textContent = "";
+    $("write-reveal").hidden = true;
+    $("btn-write-submit").hidden = false;
     const input = $("spell-input");
     input.value = "";
     input.disabled = false;
@@ -665,7 +698,11 @@
     $("write-feedback").textContent = ok ? "せいかい" : "こたえは " + w.en;
     $("write-feedback").className = "feedback " + (ok ? "ok" : "ng");
     if (!ok) setCombo(0);
-    speak(w.en);
+    $("write-en").textContent = w.en;
+    $("write-ex-en").textContent = w.exampleEn;
+    $("write-ex-ja").textContent = w.exampleJa;
+    $("btn-write-submit").hidden = true;
+    $("write-reveal").hidden = false;
     applySrs(w, !!session.listenOk[w.id], ok);
     session.results.push({
       id: w.id,
@@ -673,12 +710,16 @@
       writeOk: ok,
       speakOk: !!session.speakOk[w.id],
     });
-    setTimeout(() => {
-      isChecking = false;
-      session.index += 1;
-      if (session.index >= session.words.length) finishLesson();
-      else renderListen();
-    }, ok ? 800 : 1600);
+    speakThenExample(w);
+  }
+
+  function advanceAfterWrite() {
+    if (!session || session.phase !== "write") return;
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    isChecking = false;
+    session.index += 1;
+    if (session.index >= session.words.length) finishLesson();
+    else renderListen();
   }
 
   function finishLesson() {
@@ -799,7 +840,7 @@
     $("sheet-ex-ja").textContent = w.exampleJa;
     $("sheet-mic-fb").textContent = "";
     $("sheet-word").hidden = false;
-    speak(w.en);
+    speakThenExample(w);
   }
 
   function closeSheet() {
@@ -932,9 +973,18 @@
     $("cta-main").addEventListener("click", startLesson);
     $("btn-onboard-go").addEventListener("click", goHome);
     $("btn-replay").addEventListener("click", () => { const w = currentWord(); if (w) speak(w.en); });
-    $("btn-replay-meaning").addEventListener("click", () => { const w = currentWord(); if (w) speak(w.en); });
+    $("btn-replay-meaning").addEventListener("click", () => { const w = currentWord(); if (w) speakThenExample(w); });
+    $("meaning-example").addEventListener("click", () => { const w = currentWord(); if (w) speakExample(w); });
+    $("write-example").addEventListener("click", () => { const w = currentWord(); if (w) speakExample(w); });
+    $("sheet-example").addEventListener("click", () => { if (sheetWord) speakExample(sheetWord); });
+    $("btn-write-next").addEventListener("click", advanceAfterWrite);
     $("btn-replay-speak").addEventListener("click", () => { const w = currentWord(); if (w) speak(w.en); });
-    $("btn-replay-write").addEventListener("click", () => { const w = currentWord(); if (w) speak(w.en); });
+    $("btn-replay-write").addEventListener("click", () => {
+      const w = currentWord();
+      if (!w) return;
+      if (!$("write-reveal").hidden) speakThenExample(w);
+      else speak(w.en);
+    });
     $("btn-to-speak").addEventListener("click", renderSpeak);
     $("btn-to-write").addEventListener("click", skipSpeak);
     $("btn-speak-skip").addEventListener("click", skipSpeak);
@@ -964,7 +1014,7 @@
     $("sheet-word").addEventListener("click", (e) => {
       if (e.target === $("sheet-word")) closeSheet();
     });
-    $("sheet-speak-btn").addEventListener("click", () => { if (sheetWord) speak(sheetWord.en); });
+    $("sheet-speak-btn").addEventListener("click", () => { if (sheetWord) speakThenExample(sheetWord); });
     $("sheet-mic").addEventListener("click", () => {
       if (!sheetWord) return;
       if (!recEngine()) {

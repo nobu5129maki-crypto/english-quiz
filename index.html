@@ -276,9 +276,16 @@
       padding: 14px;
       text-align: left;
       margin: 8px 0 16px;
+      cursor: pointer;
     }
     .example .en { font-weight: 800; font-size: 1.02rem; }
     .example .ja { color: var(--muted); margin-top: 6px; font-size: 0.9rem; }
+    .example .play-hint {
+      margin-top: 8px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
 
     #spell-input {
       width: 100%;
@@ -561,9 +568,10 @@
           <div class="ja" id="meaning-ja"></div>
         </div>
         <button type="button" class="speaker" id="btn-replay-meaning" aria-label="発音を聞く">▶</button>
-        <div class="example">
+        <div class="example" id="meaning-example">
           <div class="en" id="meaning-ex-en"></div>
           <div class="ja" id="meaning-ex-ja"></div>
+          <div class="play-hint">タップで例文を聞く</div>
         </div>
         <button type="button" class="cta" id="btn-to-speak">つづける（いう）</button>
       </div>
@@ -592,6 +600,17 @@
         <div id="write-hint"></div>
         <div class="feedback" id="write-feedback"></div>
         <button type="button" class="cta" id="btn-write-submit">かくにん</button>
+        <div id="write-reveal" hidden>
+          <div class="prompt" style="margin-top:4px;">
+            <div class="en" id="write-en"></div>
+          </div>
+          <div class="example" id="write-example">
+            <div class="en" id="write-ex-en"></div>
+            <div class="ja" id="write-ex-ja"></div>
+            <div class="play-hint">タップで例文を聞く</div>
+          </div>
+          <button type="button" class="cta" id="btn-write-next">つぎへ</button>
+        </div>
       </div>
     </section>
 
@@ -646,9 +665,10 @@
         <div class="ja" id="sheet-ja"></div>
       </div>
       <button type="button" class="speaker" id="sheet-speak-btn" aria-label="発音を聞く">▶</button>
-      <div class="example">
+      <div class="example" id="sheet-example">
         <div class="en" id="sheet-ex-en"></div>
         <div class="ja" id="sheet-ex-ja"></div>
+        <div class="play-hint">タップで例文を聞く</div>
       </div>
       <button type="button" class="cta" id="sheet-mic" style="margin-top:0;">マネして言う</button>
       <p class="feedback" id="sheet-mic-fb"></p>
