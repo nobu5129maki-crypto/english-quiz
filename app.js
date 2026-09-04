@@ -417,6 +417,7 @@
   function renderHome() {
     const unit = currentUnit();
     $("streak-num").textContent = String(meta.streak || 0);
+    $("vocab-total").textContent = "中1の基本 " + WORDS.length + "語";
     $("home-status").textContent = todayDone() ? "きょうは達成" : "きょうはまだ";
     $("home-status").classList.toggle("is-done", todayDone());
     $("next-unit-name").textContent = unit.name;

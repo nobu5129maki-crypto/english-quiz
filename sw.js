@@ -1,4 +1,4 @@
-const CACHE_NAME = "five-min-words-v3";
+const CACHE_NAME = "five-min-words-v4";
 const urlsToCache = [
   "./",
   "./index.html",
