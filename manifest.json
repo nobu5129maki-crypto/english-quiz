@@ -1,14 +1,14 @@
 {
-  "name": "英単語マスター Pro",
-  "short_name": "英単語Pro",
-  "description": "ネイティブ音声付き英単語学習アプリ",
+  "name": "中学1年生のための５分英単語",
+  "short_name": "5分英単語",
+  "description": "毎日5分、音から定着させる中学1年向け英単語学習",
   "lang": "ja",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#eef2f3",
-  "theme_color": "#4CAF50",
+  "background_color": "#eef3ef",
+  "theme_color": "#1f7a4d",
   "categories": ["education"],
   "icons": [
     {

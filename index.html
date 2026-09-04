@@ -1,738 +1,450 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#4CAF50">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="英単語Pro">
-    <meta name="description" content="ネイティブ音声付き英単語学習アプリ（中学1年向け）">
-    <title>英単語マスター Pro (GitHub反映版)</title>
-    <link rel="manifest" href="./manifest.json">
-    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
-    <link rel="apple-touch-icon" href="./icon-192.png">
-    <style>
-        :root { --primary: #4CAF50; --bg: #eef2f3; --review: #f39c12; --listen: #9b59b6; --time: #e74c3c; }
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; position: relative; }
-        .header-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
-        .top-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-        .mode-selector { display: flex; background: #ddd; border-radius: 12px; padding: 4px; gap: 4px; flex-grow: 1; flex-wrap: wrap; }
-        .mode-option { flex: 1; min-width: 45px; padding: 8px 5px; font-size: 0.75rem; border-radius: 8px; cursor: pointer; font-weight: bold; color: #666; transition: 0.3s; text-align: center; border: none; background: transparent; }
-        .mode-option.active { background: white !important; color: var(--primary) !important; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .mode-option.review-mode.active { color: var(--review) !important; }
-        .review-count-badge { background: var(--review); color: white; border-radius: 10px; padding: 1px 6px; font-size: 0.65rem; margin-left: 2px; display: none; }
-        #time-tri-btn { font-size: 1.2rem; cursor: pointer; border-radius: 8px; }
-        #time-tri-btn.active { color: var(--time); background: #ffdada; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-        .timer-display { font-size: 1.2rem; font-weight: bold; color: var(--time); visibility: hidden; min-width: 60px; }
-        .highscore-display { font-size: 0.8rem; color: #7f8c8d; margin-top: 5px; background: #f9f9f9; padding: 4px; border-radius: 8px; }
-        .word-display { font-size: 2.2rem; font-weight: bold; margin-bottom: 1rem; color: #2c3e50; min-height: 3.5rem; display: flex; justify-content: center; align-items: center; }
-        .options-grid { display: grid; gap: 10px; }
-        .option-btn { padding: 14px; border: 2px solid #ddd; border-radius: 12px; background: white; cursor: pointer; font-size: 1rem; font-weight: bold; transition: 0.2s; }
-        .option-btn.correct { background: #d4edda !important; border-color: #28a745 !important; color: #155724 !important; animation: correctPulse 0.5s ease; }
-        .option-btn.wrong { background: #f8d7da !important; border-color: #dc3545 !important; color: #721c24 !important; }
-        @keyframes correctPulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); box-shadow: 0 0 20px rgba(40,167,69,0.6); } 100% { transform: scale(1); } }
-        #spell-input-area { display: none; }
-        #spell-input { width: 100%; padding: 14px; font-size: 1.4rem; border: 2px solid #ddd; border-radius: 12px; text-align: center; margin-bottom: 10px; box-sizing: border-box; }
-        .hint-btn { background: none; border: 1px solid #aaa; padding: 5px 15px; border-radius: 20px; cursor: pointer; font-size: 0.8rem; color: #666; margin-bottom: 10px; }
-        .speaker-btn { background: #f0f0f0; border-radius: 50%; width: 55px; height: 55px; cursor: pointer; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; border: none; }
-        .btn-main { padding: 15px 25px; cursor: pointer; background: var(--primary); color: white; border: none; border-radius: 12px; width: 100%; margin-top: 20px; font-size: 1.1rem; font-weight: bold; }
-        #feedback { margin-top: 10px; font-weight: bold; min-height: 24px; font-size: 1.1rem; }
-        .success-overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(76,175,80,0.15); z-index: 100; animation: successFade 0.4s ease; pointer-events: none; }
-        @keyframes successFade { 0% { opacity: 0; } 100% { opacity: 1; } }
-        .success-message { font-size: 2rem; font-weight: bold; color: #2e7d32; text-shadow: 0 0 20px rgba(255,255,255,0.8); animation: successBounce 0.6s ease; }
-        @keyframes successBounce { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 80% { transform: scale(0.95); } 100% { transform: scale(1); } }
-        .success-emoji { font-size: 4rem; line-height: 1; margin-bottom: 8px; animation: emojiPop 0.5s ease 0.1s both; }
-        @keyframes emojiPop { 0% { transform: scale(0); rotate: -20deg; } 70% { transform: scale(1.3); rotate: 10deg; } 100% { transform: scale(1); rotate: 0deg; } }
-        .success-word { font-size: 1.3rem; color: #1b5e20; margin-top: 5px; font-weight: 600; }
-        .confetti { position: fixed; top: 0; width: 10px; height: 10px; pointer-events: none; z-index: 99; }
-        .confetti span { display: block; width: 100%; height: 100%; border-radius: 2px; animation: confettiFall 1.2s ease-out forwards; }
-        @keyframes confettiFall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
-        .fun-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin: 10px 0 6px; }
-        .fun-pill { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: bold; color: #1b5e20; box-shadow: 0 2px 8px rgba(76,175,80,0.18); }
-        .fun-pill.goal-done { background: linear-gradient(135deg, #fff9c4, #fff59d); color: #f57f17; }
-        .fun-emoji { margin-right: 3px; }
-        .coach-tip { font-size: 0.76rem; color: #5d6d7e; margin: 0 0 10px; line-height: 1.45; padding: 10px 12px; background: #f4f6f8; border-radius: 12px; border-left: 4px solid var(--listen); text-align: left; }
-        .combo-display { font-size: 0.95rem; font-weight: bold; color: #d35400; margin-bottom: 6px; min-height: 1.2em; }
-        .xp-float { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); font-weight: bold; color: #2e7d32; font-size: 1.1rem; pointer-events: none; z-index: 101; animation: xpRise 0.9s ease forwards; text-shadow: 0 0 8px #fff; }
-        @keyframes xpRise { 0% { opacity: 0; transform: translate(-50%, 10px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -40px); } }
-        .badge-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) scale(0.95); max-width: 90%; background: #fff; border: 2px solid var(--primary); border-radius: 16px; padding: 12px 18px; box-shadow: 0 8px 28px rgba(0,0,0,0.15); z-index: 102; font-size: 0.88rem; font-weight: bold; color: #2c3e50; animation: badgeIn 0.35s ease forwards; }
-        @keyframes badgeIn { to { transform: translateX(-50%) scale(1); } }
-        .badge-list-btn { background: none; border: 1px dashed #81c784; color: #388e3c; border-radius: 10px; padding: 4px 10px; font-size: 0.72rem; cursor: pointer; margin-top: 4px; font-weight: bold; }
-        .badge-panel { display: none; margin-top: 10px; text-align: left; font-size: 0.75rem; color: #555; background: #fafafa; border-radius: 12px; padding: 10px; max-height: 140px; overflow-y: auto; }
-        .badge-panel.open { display: block; }
-        .badge-row { margin: 4px 0; padding: 4px 0; border-bottom: 1px solid #eee; }
-        .badge-row.unlocked { color: #2e7d32; font-weight: 600; }
-        .badge-row.locked { color: #bbb; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1f7a4d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="5分英単語">
+  <meta name="description" content="中学1年生のための５分英単語。毎日5分、音から定着させる英単語学習。">
+  <title>中学1年生のための５分英単語</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <style>
+    :root {
+      --bg: #eef3ef;
+      --ink: #1c2b24;
+      --muted: #5c6f66;
+      --primary: #1f7a4d;
+      --primary-dark: #165c3a;
+      --card: #ffffff;
+      --line: #d7e3db;
+      --ok: #1f7a4d;
+      --ng: #c0392b;
+      --now: #c9a227;
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    .phone {
+      min-height: 100%;
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+    }
+    h1, h2, p { margin: 0; }
+    button { font-family: inherit; }
+    [hidden] { display: none !important; }
+
+    .brand {
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .title {
+      font-size: 1.55rem;
+      line-height: 1.35;
+      font-weight: 800;
+    }
+    .title em {
+      font-style: normal;
+      color: var(--primary);
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+    .pill.is-done { background: #e7f6ec; }
+
+    .hero {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px 18px;
+      margin: 18px 0 14px;
+    }
+    .hero .kicker {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .hero h2 { font-size: 1.35rem; margin-bottom: 4px; }
+    .hero p { color: var(--muted); font-size: 0.9rem; }
+
+    .cta {
+      width: 100%;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 800;
+      border-radius: 14px;
+      padding: 16px 18px;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+    .cta:active { background: var(--primary-dark); }
+    .cta-sub {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .weak-line {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin: 14px 0 8px;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--muted);
+      margin: 18px 0 8px;
+    }
+    .unit-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+    .unit-row.is-current { border-color: var(--primary); }
+    .unit-row.is-cleared { opacity: 0.78; }
+    .unit-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #e7f6ec;
+      color: var(--primary-dark);
+      font-size: 0.72rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .unit-row.is-current .unit-mark { background: var(--primary); color: #fff; }
+    .unit-mark:empty { background: #eef3ef; }
+    .unit-name { font-weight: 800; font-size: 0.95rem; }
+    .unit-meta { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .ghost {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 8px 0;
+    }
+    .step-label {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: 0.08em;
+    }
+    .combo {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #b45309;
+    }
+    .dots {
+      display: flex;
+      gap: 5px;
+      margin: 10px 0 16px;
+    }
+    .dot {
+      flex: 1;
+      height: 6px;
+      border-radius: 99px;
+      background: #d5e0d8;
+    }
+    .dot.is-done { background: var(--primary); }
+    .dot.is-now { background: var(--now); }
+
+    .prompt {
+      text-align: center;
+      margin: 8px 0 14px;
+    }
+    .prompt .mystery {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: var(--ink);
+    }
+    .prompt .en {
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+    .prompt .ja {
+      margin-top: 8px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .speaker {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 1.4rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    .choices { display: grid; gap: 10px; }
+    .choice {
+      width: 100%;
+      text-align: left;
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 1.02rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .choice.is-ok { background: #e7f6ec; border-color: var(--ok); color: var(--primary-dark); }
+    .choice.is-ng { background: #fdecea; border-color: var(--ng); color: #7a1f16; }
+
+    .feedback {
+      min-height: 1.4em;
+      text-align: center;
+      font-weight: 800;
+      margin-top: 12px;
+    }
+    .feedback.ok, .flag.ok { color: var(--ok); }
+    .feedback.ng, .flag.ng { color: var(--ng); }
+    .flag {
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .example {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: left;
+      margin: 8px 0 16px;
+    }
+    .example .en { font-weight: 800; font-size: 1.02rem; }
+    .example .ja { color: var(--muted); margin-top: 6px; font-size: 0.9rem; }
+
+    #spell-input {
+      width: 100%;
+      font-size: 1.25rem;
+      text-align: center;
+      padding: 14px;
+      border-radius: 14px;
+      border: 2px solid var(--line);
+      margin-bottom: 10px;
+    }
+    .hint-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .hint-btn {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    #write-hint {
+      text-align: center;
+      letter-spacing: 0.12em;
+      color: var(--now);
+      font-weight: 800;
+      min-height: 1.2em;
+      margin-bottom: 8px;
+    }
+
+    .result-hero { text-align: center; padding: 24px 8px 8px; }
+    .result-hero h2 { font-size: 1.5rem; margin: 8px 0; }
+    .result-hero p { color: var(--muted); }
+    .result-words {
+      list-style: none;
+      padding: 0;
+      margin: 16px 0;
+    }
+    .result-words li {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+    .result-words li.ok { border-color: #b7e0c4; }
+    .result-words li.ng { border-color: #f5c2bc; }
+
+    .onboard-lead {
+      text-align: center;
+      margin: 24px 0 18px;
+    }
+    .onboard-lead p { color: var(--muted); margin-top: 8px; font-size: 0.92rem; line-height: 1.6; }
+  </style>
 </head>
 <body>
-
-<div class="card" id="game-card">
-    <div id="game-content">
-        <div class="header-controls">
-            <div class="top-row">
-                <div class="mode-selector">
-                    <button class="mode-option active" id="btn-choice" onclick="changeMode('choice')">4択</button>
-                    <button class="mode-option" id="btn-spell" onclick="changeMode('spell')">書く</button>
-                    <button class="mode-option" id="btn-listen" onclick="changeMode('listen')">聞く</button>
-                    <button class="mode-option" id="btn-review" onclick="changeMode('review')">
-                        復習<span id="review-badge" class="review-count-badge">0</span>
-                    </button>
-                    <button class="mode-option" id="time-tri-btn" onclick="toggleTimeTrial()">⏱</button>
-                </div>
-                <div id="timer" class="timer-display">10:00</div>
-            </div>
-            <div class="highscore-display">最高記録: <span id="high-score">0</span></div>
+  <div class="phone">
+    <section id="screen-onboard" hidden>
+      <div id="onboard-quiz">
+        <p class="brand">中学1年生のための５分英単語</p>
+        <div class="onboard-lead">
+          <h1 class="title">まず3語だけ</h1>
+          <p>知っている語から。毎日5分の準備運動です。</p>
+          <p id="onboard-step" class="step-label" style="margin-top:12px;"></p>
         </div>
-        <div class="fun-bar">
-            <div class="fun-pill streak-pill" title="きょう学習すると数字がのびるよ"><span class="fun-emoji">🔥</span><span id="streak-count">0</span>日連続</div>
-            <div class="fun-pill" title="たくさん正解すればレベルアップ！"><span id="level-label">Lv.1</span></div>
-            <div class="fun-pill goal-pill" id="goal-pill" title="きょうのちいさな目標"><span id="goal-text">きょう 0/5</span></div>
-            <div class="fun-pill" title="あつめたばっじ"><span class="fun-emoji">🏅</span><span id="badge-count">0</span></div>
+        <div class="prompt"><div class="en" id="onboard-en"></div></div>
+        <div class="choices" id="onboard-options"></div>
+      </div>
+      <div id="onboard-done" hidden>
+        <div class="onboard-lead">
+          <h1 class="title">3語、できました</h1>
+          <p>きょうから、毎日5分だけ。音からおぼえて、学校の単元へ進みます。</p>
         </div>
-        <div class="coach-tip" id="coach-tip"></div>
-        <button type="button" class="badge-list-btn" id="badge-toggle" onclick="toggleBadgePanel()">🏅 バッジ一覧</button>
-        <div class="badge-panel" id="badge-panel"></div>
-        <div class="score-board" style="color:#7f8c8d; margin-bottom:5px; font-size: 0.9rem; font-weight: bold;">
-            スコア: <span id="score" style="color:var(--primary);">0</span>
-            <span id="xp-mini" style="margin-left:8px; color:#9b59b6; font-size:0.82rem;"></span>
+        <button type="button" class="cta" id="btn-onboard-go">ホームへ</button>
+      </div>
+    </section>
+
+    <section id="screen-home" hidden>
+      <p class="brand">中学1年生のための</p>
+      <h1 class="title"><em>５分</em>英単語</h1>
+      <div class="row" style="margin-top:12px;">
+        <div class="pill"><span id="streak-num">0</span>日連続</div>
+        <div class="pill" id="home-status">きょうはまだ</div>
+      </div>
+      <div class="hero">
+        <div class="kicker">つぎの単元</div>
+        <h2 id="next-unit-name">あいさつ</h2>
+        <p id="next-unit-blurb">毎日つかうことば</p>
+        <button type="button" class="cta" id="cta-main">きょうの5分をはじめる</button>
+        <p class="cta-sub" id="cta-sub">1セット 約5分・8語</p>
+      </div>
+      <p class="weak-line" id="weak-line"></p>
+      <div class="section-label">単元</div>
+      <div id="unit-list"></div>
+    </section>
+
+    <section id="screen-lesson" hidden>
+      <div class="topbar">
+        <button type="button" class="ghost" id="btn-quit">やめる</button>
+        <div class="step-label" id="step-label">きく</div>
+        <div class="combo" id="combo-line" hidden></div>
+      </div>
+      <div class="row" style="justify-content:space-between;">
+        <span id="lesson-unit" style="font-weight:800;font-size:0.9rem;"></span>
+        <span style="color:var(--muted);font-size:0.8rem;font-weight:700;">
+          <span id="lesson-index">1</span> / <span id="lesson-total">8</span>
+        </span>
+      </div>
+      <div class="dots" id="progress-dots"></div>
+
+      <div id="phase-listen">
+        <div class="prompt"><div class="mystery">?</div></div>
+        <p class="cta-sub" style="margin-top:-6px;margin-bottom:10px;">聞こえた意味は？</p>
+        <button type="button" class="speaker" id="btn-replay" aria-label="もう一度聞く">▶</button>
+        <div class="choices" id="listen-options"></div>
+        <div class="feedback" id="listen-feedback"></div>
+      </div>
+
+      <div id="phase-meaning" hidden>
+        <div class="flag" id="meaning-flag"></div>
+        <div class="prompt">
+          <div class="en" id="meaning-en"></div>
+          <div class="ja" id="meaning-ja"></div>
         </div>
-        <div class="combo-display" id="combo-display"></div>
-        <div class="word-display"><span id="target-display">準備中...</span></div>
-        
-        <button id="speaker-icon" class="speaker-btn" onclick="retrySpeak()">🔊</button>
-        
-        <div class="options-grid" id="options"></div>
-        
-        <div id="spell-input-area">
-            <input type="text" id="spell-input" placeholder="スペルを入力..." autocomplete="off">
-            <br>
-            <button class="hint-btn" onclick="showHint()">💡 ヒント</button>
-            <div id="hint-text" style="font-size: 0.8rem; color: #f39c12; letter-spacing: 2px; height: 20px;"></div>
+        <button type="button" class="speaker" id="btn-replay-meaning" aria-label="発音を聞く">▶</button>
+        <div class="example">
+          <div class="en" id="meaning-ex-en"></div>
+          <div class="ja" id="meaning-ex-ja"></div>
         </div>
-        
-        <div id="feedback"></div>
-    </div>
-</div>
+        <button type="button" class="cta" id="btn-to-write">つづける（書く）</button>
+      </div>
 
-<script>
-    // 単語リスト
-    const masterWordList = [
-        { en: "Hello", ja: "こんにちは" }, { en: "Thank you", ja: "ありがとう" },
-        { en: "Excuse me", ja: "すみません" }, { en: "I'm sorry", ja: "ごめんなさい" },
-        { en: "Good morning", ja: "おはよう" }, { en: "Good night", ja: "おやすみなさい" },
-        { en: "Nice to meet you", ja: "はじめまして" }, { en: "How are you?", ja: "お元気ですか？" },
-        { en: "Please", ja: "お願いします" }, { en: "my", ja: "私の" },
-        { en: "me", ja: "私を" }, { en: "mine", ja: "私のもの" },
-        { en: "yours", ja: "あなたのもの" }, { en: "his", ja: "彼の" },
-        { en: "she", ja: "彼女" }, { en: "her", ja: "彼女の" },
-        { en: "hers", ja: "彼女のもの" }, { en: "it", ja: "それ" },
-        { en: "its", ja: "それの" }, { en: "they", ja: "彼ら、それら" },
-        { en: "their", ja: "彼らの、それらの" }, { en: "them", ja: "彼らを、それらを" },
-        { en: "theirs", ja: "彼らのもの、それらのもの" }, { en: "we", ja: "私たち" },
-        { en: "our", ja: "私たちの" }, { en: "us", ja: "私たちを" },
-        { en: "ours", ja: "私たちのもの" }, { en: "what", ja: "何" },
-        { en: "where", ja: "どこ" }, { en: "when", ja: "いつ" },
-        { en: "who", ja: "誰" }, { en: "whose", ja: "誰の" },
-        { en: "which", ja: "どちらの" }, { en: "how", ja: "どうやって" },
-        { en: "sunny", ja: "晴れている" }, { en: "cloudy", ja: "曇っている" }, 
-        { en: "rainy", ja: "雨が降っている" }, { en: "snowy", ja: "雪が降っている" }, 
-        { en: "friend", ja: "友だち" }, { en: "apple", ja: "りんご" },
-        { en: "book", ja: "本" }, { en: "school", ja: "学校" },
-        { en: "student", ja: "生徒" }, { en: "teacher", ja: "先生" },
-        { en: "dog", ja: "犬" }, { en: "cat", ja: "猫" },
-        { en: "water", ja: "水" }, { en: "food", ja: "食べ物" },
-        { en: "happy", ja: "幸せな" }, { en: "sad", ja: "悲しい" },
-        { en: "big", ja: "大きい" }, { en: "small", ja: "小さい" }
-    ];
+      <div id="phase-write" hidden>
+        <div class="prompt"><div class="ja" id="write-ja" style="font-size:1.4rem;color:var(--ink);"></div></div>
+        <button type="button" class="speaker" id="btn-replay-write" aria-label="発音を聞く">▶</button>
+        <input id="spell-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="英語で書く">
+        <div class="hint-row">
+          <button type="button" class="hint-btn" id="btn-hint">ヒント</button>
+        </div>
+        <div id="write-hint"></div>
+        <div class="feedback" id="write-feedback"></div>
+        <button type="button" class="cta" id="btn-write-submit">かくにん</button>
+      </div>
+    </section>
 
-    const STORAGE_FUN = {
-        streak: 'wm_streak_n',
-        lastActive: 'wm_last_active',
-        xp: 'wm_xp',
-        totalCorrect: 'wm_total_correct',
-        badges: 'wm_badges',
-        goalDate: 'wm_goal_date',
-        goalTarget: 'wm_goal_target',
-        goalProgress: 'wm_goal_prog',
-        modesTried: 'wm_modes_tried',
-        reviewCleared: 'wm_review_cleared',
-    };
+    <section id="screen-result" hidden>
+      <div class="result-hero">
+        <p class="brand">きょうの5分</p>
+        <h2>おつかれさま</h2>
+        <p><span id="result-count">8語</span> やりきりました。</p>
+        <p id="result-weak" style="margin-top:8px;"></p>
+      </div>
+      <ul class="result-words" id="result-words"></ul>
+      <button type="button" class="cta" id="btn-result-home">ホームへ</button>
+      <p class="cta-sub">習慣は、昨日と同じ儀式から。</p>
+      <button type="button" class="ghost" id="btn-result-again" style="width:100%;margin-top:8px;">もう1セット</button>
+    </section>
+  </div>
 
-    const COACH_TIPS = [
-        '💡 英語は<strong>聞く → 真似る → 話す</strong>の順がコツ。まずはスピーカーで何度も！',
-        '💡 間違えてOK！むしろ<strong>復習リスト</strong>に入った単語が「伸びしろ」です。',
-        '💡 単語は<strong>音で覚える</strong>とリスニングが楽になるよ。口の形も意識してみて。',
-        '💡 <strong>「書く」モード</strong>でスペルを指で空書きすると記憶に残りやすいよ。',
-        '💡 <strong>毎日1セット</strong>だけでも続くと英語がぐっとラクになる。連続日数を見てみてね。',
-        '💡 似た意味の単語は<strong>ペアで覚える</strong>（big / small など）と辞書ヘビーアタックしにくい。',
-        '💡 タイムトライは<strong>焦らず先に意味</strong>→スピード、の2段階でチャレンジ！',
-        '💡 学校のテスト前は<strong>「聞く」→「4択」</strong>の順がおすすめ。耳を慣らしてから選択。',
-    ];
-
-    const BADGE_DEFS = [
-        { id: 'first_star', icon: '⭐', name: 'はじめの一歩', desc: 'はじめて1問せいかいした', test: (s) => s.totalCorrect >= 1 },
-        { id: 'ten_spark', icon: '✨', name: '10こスパーク', desc: 'せいかい数が10こをこえた', test: (s) => s.totalCorrect >= 10 },
-        { id: 'combo_5', icon: '🔥', name: '5コンボ！', desc: 'れんぞく5もんせいかい', test: (s) => s.combo >= 5 },
-        { id: 'triple_play', icon: '🎮', name: 'トリプルチャレンジ', desc: '4択・かく・きくを1つずつプレイした', test: (s) => {
-            const m = s.modesTried || {};
-            return !!(m.choice && m.spell && m.listen);
-        }},
-        { id: 'streak_3', icon: '🔥', name: '3日ストリーク', desc: '3日れんぞくでべんきょうした', test: (s) => s.streak >= 3 },
-        { id: 'daily_goal', icon: '🎯', name: 'きょうのミッション', desc: 'きょうのミニもくひょうをクリアした', test: (s) => s.goalComplete },
-        { id: 'review_hero', icon: '🛡', name: 'ふくしゅうヒーロー', desc: 'ふくしゅうリストを0にしたことがある', test: (s) => s.reviewMaster },
-        { id: 'lv_five', icon: '🌟', name: 'レベル5到達', desc: 'レベル5にたっした', test: (s) => s.level >= 5 },
-    ];
-
-    let sessionCombo = 0;
-
-    function ymdLocal(d) {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return y + '-' + m + '-' + day;
+  <script src="./data.js"></script>
+  <script src="./app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(function () {});
+      });
     }
-
-    function yesterdayYmd() {
-        const d = new Date();
-        d.setDate(d.getDate() - 1);
-        return ymdLocal(d);
-    }
-
-    function bumpStreakIfNeeded() {
-        const today = ymdLocal(new Date());
-        const last = localStorage.getItem(STORAGE_FUN.lastActive);
-        let streak = parseInt(localStorage.getItem(STORAGE_FUN.streak) || '0', 10);
-        if (last === today) return;
-        const y = yesterdayYmd();
-        if (last === y) streak += 1;
-        else if (!last) streak = 1;
-        else streak = 1;
-        localStorage.setItem(STORAGE_FUN.streak, String(streak));
-        localStorage.setItem(STORAGE_FUN.lastActive, today);
-    }
-
-    function initDailyGoal() {
-        const today = ymdLocal(new Date());
-        if (localStorage.getItem(STORAGE_FUN.goalDate) !== today) {
-            const target = 3 + Math.floor(Math.random() * 4);
-            localStorage.setItem(STORAGE_FUN.goalDate, today);
-            localStorage.setItem(STORAGE_FUN.goalTarget, String(target));
-            localStorage.setItem(STORAGE_FUN.goalProgress, '0');
-        }
-    }
-
-    function bumpGoalProgress() {
-        initDailyGoal();
-        const t = parseInt(localStorage.getItem(STORAGE_FUN.goalTarget) || '5', 10);
-        let p = parseInt(localStorage.getItem(STORAGE_FUN.goalProgress) || '0', 10);
-        if (p < t) {
-            p++;
-            localStorage.setItem(STORAGE_FUN.goalProgress, String(p));
-        }
-    }
-
-    function isGoalComplete() {
-        initDailyGoal();
-        const t = parseInt(localStorage.getItem(STORAGE_FUN.goalTarget) || '5', 10);
-        const p = parseInt(localStorage.getItem(STORAGE_FUN.goalProgress) || '0', 10);
-        return p >= t;
-    }
-
-    function xpToLevel(xp) {
-        return Math.min(99, Math.floor(xp / 45) + 1);
-    }
-
-    function addXp(amt) {
-        let xp = parseInt(localStorage.getItem(STORAGE_FUN.xp) || '0', 10);
-        const oldLv = xpToLevel(xp);
-        xp += amt;
-        localStorage.setItem(STORAGE_FUN.xp, String(xp));
-        const newLv = xpToLevel(xp);
-        if (newLv > oldLv) showLevelUpToast(newLv);
-    }
-
-    function getUnlockedBadges() {
-        try {
-            return new Set(JSON.parse(localStorage.getItem(STORAGE_FUN.badges) || '[]'));
-        } catch (e) {
-            return new Set();
-        }
-    }
-
-    function unlockBadge(id) {
-        const s = getUnlockedBadges();
-        if (s.has(id)) return false;
-        s.add(id);
-        localStorage.setItem(STORAGE_FUN.badges, JSON.stringify(Array.from(s)));
-        return true;
-    }
-
-    function getFunStats() {
-        const modesTried = JSON.parse(localStorage.getItem(STORAGE_FUN.modesTried) || '{}');
-        const xp = parseInt(localStorage.getItem(STORAGE_FUN.xp) || '0', 10);
-        return {
-            totalCorrect: parseInt(localStorage.getItem(STORAGE_FUN.totalCorrect) || '0', 10),
-            streak: parseInt(localStorage.getItem(STORAGE_FUN.streak) || '0', 10),
-            combo: sessionCombo,
-            xp: xp,
-            level: xpToLevel(xp),
-            modesTried: modesTried,
-            goalComplete: isGoalComplete(),
-            reviewMaster: localStorage.getItem(STORAGE_FUN.reviewCleared) === '1',
-        };
-    }
-
-    function tryUnlockBadges() {
-        const stats = getFunStats();
-        for (const b of BADGE_DEFS) {
-            if (getUnlockedBadges().has(b.id)) continue;
-            if (b.test(stats)) {
-                if (unlockBadge(b.id)) showBadgeToast(b);
-            }
-        }
-    }
-
-    function showBadgeToast(b) {
-        const el = document.createElement('div');
-        el.className = 'badge-toast';
-        el.innerHTML = b.icon + ' <strong>' + b.name + '</strong><br><span style="font-weight:600;font-size:0.82rem;color:#666;">' + b.desc + '</span>';
-        document.body.appendChild(el);
-        setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s'; }, 2600);
-        setTimeout(() => el.remove(), 3000);
-    }
-
-    function showLevelUpToast(lv) {
-        const el = document.createElement('div');
-        el.className = 'badge-toast';
-        el.style.borderColor = '#9b59b6';
-        el.innerHTML = '🎓 <strong>レベルアップ！</strong><br><span style="font-size:0.95rem;color:#6a1b9a;">Lv.' + lv + ' — つぎのステージへいこう</span>';
-        document.body.appendChild(el);
-        setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s'; }, 2200);
-        setTimeout(() => el.remove(), 2600);
-    }
-
-    function showXpFloat(n) {
-        const el = document.createElement('div');
-        el.className = 'xp-float';
-        el.textContent = '+' + n + ' XP';
-        document.body.appendChild(el);
-        setTimeout(() => el.remove(), 950);
-    }
-
-    function refreshFunBar() {
-        initDailyGoal();
-        const streak = localStorage.getItem(STORAGE_FUN.streak) || '0';
-        const xp = parseInt(localStorage.getItem(STORAGE_FUN.xp) || '0', 10);
-        const lv = xpToLevel(xp);
-        const target = parseInt(localStorage.getItem(STORAGE_FUN.goalTarget) || '5', 10);
-        const prog = parseInt(localStorage.getItem(STORAGE_FUN.goalProgress) || '0', 10);
-        const sc = document.getElementById('streak-count');
-        if (sc) sc.textContent = streak;
-        const ll = document.getElementById('level-label');
-        if (ll) ll.textContent = 'Lv.' + lv;
-        const gt = document.getElementById('goal-text');
-        if (gt) gt.textContent = 'きょう ' + Math.min(prog, target) + '/' + target;
-        const gp = document.getElementById('goal-pill');
-        if (gp) gp.classList.toggle('goal-done', prog >= target);
-        const bc = document.getElementById('badge-count');
-        if (bc) bc.textContent = String(getUnlockedBadges().size);
-        const xm = document.getElementById('xp-mini');
-        if (xm) xm.textContent = 'XP ' + xp;
-    }
-
-    function initCoachTip() {
-        const tip = document.getElementById('coach-tip');
-        if (!tip) return;
-        const i = Math.floor(Math.random() * COACH_TIPS.length);
-        tip.innerHTML = COACH_TIPS[i];
-    }
-
-    function markModeTried(mode) {
-        if (mode === 'review' || mode === 'time') return;
-        const o = JSON.parse(localStorage.getItem(STORAGE_FUN.modesTried) || '{}');
-        o[mode] = 1;
-        localStorage.setItem(STORAGE_FUN.modesTried, JSON.stringify(o));
-    }
-
-    function updateComboUI() {
-        const el = document.getElementById('combo-display');
-        if (!el) return;
-        if (sessionCombo >= 2) {
-            const msgs = ['', '', '2 コンボ！', '3 コンボ！いいね！', '4 コンボ！', '5 コンボ！すごすぎ！', '🌈 メガコンボ！'];
-            const t = sessionCombo < msgs.length ? msgs[sessionCombo] : '🔥 ' + sessionCombo + ' れんぞく！';
-            el.textContent = t;
-        } else {
-            el.textContent = '';
-        }
-    }
-
-    function toggleBadgePanel() {
-        const p = document.getElementById('badge-panel');
-        if (!p) return;
-        p.classList.toggle('open');
-        renderBadgePanel();
-    }
-
-    function renderBadgePanel() {
-        const p = document.getElementById('badge-panel');
-        if (!p || !p.classList.contains('open')) return;
-        const have = getUnlockedBadges();
-        p.innerHTML = BADGE_DEFS.map(function (b) {
-            const ok = have.has(b.id);
-            return '<div class="badge-row ' + (ok ? 'unlocked' : 'locked') + '">' +
-                (ok ? b.icon + ' ' : '🔒 ') + '<strong>' + b.name + '</strong> — ' + b.desc + '</div>';
-        }).join('');
-    }
-
-    let currentActiveList = [], currentIndex = 0, score = 0, isChecking = false;
-    let currentMode = 'choice', isTimeTrial = false, timerInterval = null, timeLeft = 600;
-    let reviewList = [];
-    let selectedVoice = null; // ネイティブ発音用の最適な音声
-
-    // localStorage初期化
-    function loadData() {
-        try {
-            const saved = localStorage.getItem('review_words');
-            reviewList = saved ? JSON.parse(saved) : [];
-        } catch(e) {
-            reviewList = [];
-        }
-        updateReviewBadge();
-        updateHighScoreDisplay();
-        initDailyGoal();
-        refreshFunBar();
-        initCoachTip();
-        markModeTried('choice');
-    }
-
-    function saveData() {
-        localStorage.setItem('review_words', JSON.stringify(reviewList));
-    }
-
-    function updateReviewBadge() {
-        const badge = document.getElementById('review-badge');
-        if(!badge) return;
-        badge.textContent = reviewList.length;
-        badge.style.display = reviewList.length > 0 ? "inline" : "none";
-    }
-
-    function shuffle(array) {
-        return array.map(a => ({ sort: Math.random(), value: a }))
-                    .sort((a, b) => a.sort - b.sort)
-                    .map(a => a.value);
-    }
-
-    function changeMode(mode) {
-        if (mode === 'review' && reviewList.length === 0) {
-            alert("復習リストは現在空です。問題を間違えると自動的に追加されます！");
-            return;
-        }
-        markModeTried(mode);
-        currentMode = mode;
-        
-        // ボタンの見た目を更新
-        document.querySelectorAll('.mode-option').forEach(btn => btn.classList.remove('active'));
-        const activeBtn = document.getElementById(`btn-${mode}`);
-        if(activeBtn) activeBtn.classList.add('active');
-        
-        updateHighScoreDisplay();
-        tryUnlockBadges();
-        refreshFunBar();
-        resetProgress();
-    }
-
-    function toggleTimeTrial() {
-        isTimeTrial = !isTimeTrial;
-        document.getElementById('timer').style.visibility = isTimeTrial ? 'visible' : 'hidden';
-        document.getElementById('time-tri-btn').classList.toggle('active');
-        if(isTimeTrial) startTimer(); else stopTimer();
-        resetProgress();
-    }
-
-    function startTimer() { 
-        stopTimer(); 
-        timeLeft = 600; 
-        updateTimerText(); 
-        timerInterval = setInterval(() => { 
-            timeLeft--; 
-            updateTimerText(); 
-            if(timeLeft <= 0) { stopTimer(); finish("タイムアップ！"); } 
-        }, 1000); 
-    }
-    
-    function stopTimer() { clearInterval(timerInterval); }
-    function updateTimerText() { 
-        const m = Math.floor(timeLeft / 60); 
-        const s = timeLeft % 60; 
-        document.getElementById('timer').textContent = `${m}:${s.toString().padStart(2, '0')}`; 
-    }
-    
-    function updateHighScoreDisplay() { 
-        const key = `hs_${currentMode}_${isTimeTrial}`;
-        document.getElementById('high-score').textContent = localStorage.getItem(key) || 0; 
-    }
-
-    function resetProgress() {
-        if (currentMode === 'review') {
-            if (reviewList.length === 0) {
-                currentMode = 'choice';
-                document.getElementById('btn-choice').classList.add('active');
-                document.getElementById('btn-review').classList.remove('active');
-                currentActiveList = shuffle(masterWordList);
-            } else {
-                currentActiveList = shuffle(reviewList);
-            }
-        } else {
-            currentActiveList = shuffle(masterWordList);
-        }
-        currentIndex = 0; score = 0;
-        sessionCombo = 0;
-        updateComboUI();
-        document.getElementById('score').textContent = "0";
-        showQuestion();
-    }
-
-    function showQuestion() {
-        if (currentActiveList.length === 0) {
-            finish("リストが空です！");
-            return;
-        }
-        if (currentIndex >= currentActiveList.length) {
-            if(isTimeTrial) { 
-                currentActiveList = shuffle(currentMode === 'review' ? reviewList : masterWordList); 
-                currentIndex = 0; 
-            } else { 
-                finish("全問終了！"); return; 
-            }
-        }
-        
-        isChecking = false;
-        const q = currentActiveList[currentIndex];
-        document.getElementById('feedback').textContent = "";
-        document.getElementById('hint-text').textContent = "";
-        
-        const display = document.getElementById('target-display');
-        const inputArea = document.getElementById('spell-input-area');
-        const optionsArea = document.getElementById('options');
-        const speaker = document.getElementById('speaker-icon');
-
-        if (currentMode === 'spell') {
-            display.textContent = q.ja; 
-            speaker.style.display = 'none'; 
-            inputArea.style.display = 'block'; 
-            optionsArea.style.display = 'none';
-            const input = document.getElementById('spell-input'); 
-            input.value = ""; 
-            input.disabled = false; 
-            setTimeout(() => input.focus(), 100);
-        } else if (currentMode === 'listen') {
-            display.textContent = "???"; 
-            speaker.style.display = 'flex'; 
-            inputArea.style.display = 'none'; 
-            optionsArea.style.display = 'grid';
-            speak(q.en); setupOptions(q);
-        } else {
-            display.textContent = q.en; 
-            speaker.style.display = 'flex'; 
-            inputArea.style.display = 'none'; 
-            optionsArea.style.display = 'grid';
-            speak(q.en); setupOptions(q);
-        }
-    }
-
-    function setupOptions(q) {
-        const others = masterWordList.filter(w => w.ja !== q.ja);
-        const opts = shuffle([q.ja, ...shuffle(others).slice(0, 3).map(w => w.ja)]);
-        const container = document.getElementById('options');
-        container.innerHTML = '';
-        opts.forEach(o => {
-            const btn = document.createElement('button');
-            btn.className = 'option-btn'; btn.textContent = o;
-            btn.onclick = () => check(o === q.ja, btn);
-            container.appendChild(btn);
-        });
-    }
-
-    function showSuccessOverlay(praise, word) {
-        const colors = ['#4CAF50', '#8BC34A', '#FFEB3B', '#FF9800', '#E91E63'];
-        for (let i = 0; i < 15; i++) {
-            const c = document.createElement('div');
-            c.className = 'confetti';
-            c.style.left = Math.random() * 100 + 'vw';
-            const span = document.createElement('span');
-            span.style.background = colors[Math.floor(Math.random() * colors.length)];
-            span.style.animationDelay = (Math.random() * 0.3) + 's';
-            c.appendChild(span);
-            document.body.appendChild(c);
-            setTimeout(() => c.remove(), 1300);
-        }
-        const overlay = document.createElement('div');
-        overlay.className = 'success-overlay';
-        overlay.innerHTML = `
-            <div class="success-emoji">🎉</div>
-            <div class="success-message">${praise}</div>
-            <div class="success-word">${word}</div>
-        `;
-        document.body.appendChild(overlay);
-        setTimeout(() => overlay.remove(), 700);
-    }
-
-    function check(isCorrect, targetElement = null) {
-        if(isChecking) return;
-        isChecking = true;
-        const q = currentActiveList[currentIndex];
-        
-        if (currentMode === 'listen') document.getElementById('target-display').textContent = q.en;
-
-        const feedback = document.getElementById('feedback');
-        if(isCorrect) {
-            if(targetElement) targetElement.classList.add('correct');
-            score++; 
-            document.getElementById('score').textContent = score;
-            
-            // 正解時の盛大なフィードバック
-            const praises = ['やったね！', 'すごい！', '完璧！', 'ナイス！', 'その調子！', 'さすが！'];
-            const praise = praises[Math.floor(Math.random() * praises.length)];
-            showSuccessOverlay(praise, q.en);
-            feedback.innerHTML = `<span style="color:var(--primary); font-size:1.2rem;">✨ 正解: ${q.en}</span>`;
-
-            bumpStreakIfNeeded();
-            let tc = parseInt(localStorage.getItem(STORAGE_FUN.totalCorrect) || '0', 10);
-            tc++;
-            localStorage.setItem(STORAGE_FUN.totalCorrect, String(tc));
-            bumpGoalProgress();
-            addXp(5);
-            showXpFloat(5);
-            sessionCombo++;
-            updateComboUI();
-            refreshFunBar();
-            tryUnlockBadges();
-
-            if (currentMode === 'review') {
-                reviewList = reviewList.filter(item => item.en !== q.en);
-                saveData();
-                updateReviewBadge();
-                if (reviewList.length === 0) {
-                    localStorage.setItem(STORAGE_FUN.reviewCleared, '1');
-                    tryUnlockBadges();
-                }
-            }
-        } else {
-            if(targetElement) targetElement.classList.add('wrong');
-            sessionCombo = 0;
-            updateComboUI();
-            feedback.innerHTML = `<span style="color:var(--time)">❌ 不正解: ${q.en}</span>`;
-            
-            if (!reviewList.find(item => item.en === q.en)) {
-                reviewList.push(q);
-                saveData();
-                updateReviewBadge();
-            }
-        }
-        
-        speak(q.en);
-        setTimeout(() => { currentIndex++; showQuestion(); }, isCorrect ? 1100 : 2000);
-    }
-
-    function showHint() {
-        const q = currentActiveList[currentIndex];
-        if(!q) return;
-        const hint = q.en[0] + "_".repeat(q.en.length - 2) + q.en.slice(-1);
-        document.getElementById('hint-text').textContent = hint;
-    }
-
-    // ネイティブに近い英語音声を選択（en-US優先、高品質音声を優先）
-    function selectBestEnglishVoice() {
-        const voices = speechSynthesis.getVoices();
-        const enVoices = voices.filter(v => v.lang.startsWith('en'));
-        if (enVoices.length === 0) return null;
-        // 高品質ネイティブ音声の優先リスト（Chrome/Edge/Safari対応）
-        const preferredNames = ['Google US English', 'Microsoft Zira', 'Microsoft David', 'Samantha', 'Alex', 'Karen', 'Daniel', 'Mark'];
-        for (const name of preferredNames) {
-            const v = enVoices.find(x => x.name.includes(name));
-            if (v) return v;
-        }
-        // en-US を優先、次に en-GB
-        const us = enVoices.find(v => v.lang === 'en-US');
-        if (us) return us;
-        const gb = enVoices.find(v => v.lang === 'en-GB');
-        if (gb) return gb;
-        return enVoices[0];
-    }
-
-    function initVoices() {
-        const voices = speechSynthesis.getVoices();
-        if (voices.length > 0 && !selectedVoice) {
-            selectedVoice = selectBestEnglishVoice();
-        }
-    }
-
-    function speak(text) {
-        if (!('speechSynthesis' in window)) return;
-        speechSynthesis.cancel();
-        initVoices(); // 音声が未読み込みの場合に備える
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'en-US';
-        u.rate = 0.95;  // ややゆっくりで聞き取りやすく、自然な速度
-        u.pitch = 1.0;  // 自然なピッチ
-        u.volume = 1.0;
-        if (selectedVoice) u.voice = selectedVoice;
-        speechSynthesis.speak(u);
-    }
-
-    function retrySpeak() { if (currentActiveList[currentIndex]) speak(currentActiveList[currentIndex].en); }
-
-    document.getElementById('spell-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const val = document.getElementById('spell-input').value.trim().toLowerCase();
-            if(val === "") return;
-            check(val === currentActiveList[currentIndex].en.toLowerCase());
-        }
-    });
-
-    function finish(msg) {
-        stopTimer();
-        const key = `hs_${currentMode}_${isTimeTrial}`;
-        const oldHS = parseInt(localStorage.getItem(key) || 0);
-        if(score > oldHS) localStorage.setItem(key, score);
-        const missionLine = isGoalComplete()
-            ? '<p style="color:#f57f17;font-weight:bold;margin:12px 0;">🎯 きょうのミッション達成！あしたもまたね！</p>'
-            : '';
-
-        document.getElementById('game-card').innerHTML = `
-            <h2>${msg}</h2>
-            <div style="font-size:2.5rem; color:var(--primary); font-weight:bold; margin: 20px 0;">${score}点</div>
-            <p>今回の最高記録: ${Math.max(score, oldHS)}</p>
-            ${missionLine}
-            <div style="background:#fff3e0; padding:15px; border-radius:10px; margin-top:20px;">
-                <p style="color:#e67e22; margin:0; font-weight:bold;">復習が必要な単語: ${reviewList.length} 件</p>
-            </div>
-            <button onclick="location.reload()" class="btn-main">トップに戻る</button>
-        `;
-    }
-
-    // 音声リストの非同期読み込みに対応
-    if ('speechSynthesis' in window) {
-        speechSynthesis.onvoiceschanged = initVoices;
-        initVoices(); // 既に読み込み済みの場合
-    }
-
-    // 即時実行
-    loadData();
-    resetProgress();
-
-    // PWA: ホーム画面に追加（Android Chrome / Edge 等）で使えるサービスワーカー
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function () {
-            navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function () {});
-        });
-    }
-
-</script>
+  </script>
 </body>
 </html>
