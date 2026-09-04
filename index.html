@@ -106,6 +106,7 @@
       padding: 16px 18px;
       cursor: pointer;
       margin-top: 16px;
+      scroll-margin-bottom: 96px;
     }
     .cta:active { background: var(--primary-dark); }
     .cta-sub {
@@ -153,6 +154,13 @@
     }
     .unit-row.is-current .unit-mark { background: var(--primary); color: #fff; }
     .unit-mark:empty { background: #eef3ef; }
+    button.unit-row,
+    button.dex-card {
+      width: 100%;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
     .unit-name { font-weight: 800; font-size: 0.95rem; }
     .unit-meta { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
 
@@ -331,6 +339,156 @@
       margin: 24px 0 18px;
     }
     .onboard-lead p { color: var(--muted); margin-top: 8px; font-size: 0.92rem; line-height: 1.6; }
+
+    body.has-tabbar .phone {
+      padding-bottom: calc(88px + env(safe-area-inset-bottom));
+    }
+    .tabbar {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 430px;
+      display: flex;
+      background: #fff;
+      border-top: 1px solid var(--line);
+      padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
+      z-index: 20;
+    }
+    .tabbar[hidden] { display: none !important; }
+    .tab-btn {
+      flex: 1;
+      border: none;
+      background: none;
+      padding: 10px 4px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .tab-btn.is-on { color: var(--primary); }
+
+    .filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin: 12px 0; }
+    .chip {
+      flex-shrink: 0;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .chip.is-on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .dex-count { font-size: 0.85rem; color: var(--muted); font-weight: 700; margin-top: 6px; }
+    .dex-unit { margin: 16px 0 8px; font-size: 0.78rem; font-weight: 800; color: var(--muted); }
+    .dex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .dex-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      text-align: left;
+      cursor: pointer;
+      min-height: 88px;
+    }
+    .dex-card .en { font-weight: 800; font-size: 1rem; }
+    .dex-card .ja { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+    .dex-card .st { font-size: 0.68rem; font-weight: 800; margin-top: 8px; color: var(--primary); }
+    .dex-card.is-locked {
+      background: #e8eee9;
+      cursor: default;
+    }
+    .dex-card.is-locked .en { color: var(--muted); letter-spacing: 0.2em; }
+    .dex-card.is-weak .st { color: #b45309; }
+    .dex-card.is-new .st { color: var(--muted); }
+
+    .sheet {
+      position: fixed;
+      inset: 0;
+      background: rgba(28, 43, 36, 0.35);
+      z-index: 30;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .sheet[hidden] { display: none !important; }
+    .sheet-card {
+      width: 100%;
+      max-width: 430px;
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    }
+
+    .week-dots { display: flex; gap: 6px; margin: 12px 0 4px; }
+    .week-dot {
+      flex: 1;
+      text-align: center;
+    }
+    .week-dot span {
+      display: block;
+      height: 10px;
+      border-radius: 99px;
+      background: #d5e0d8;
+      margin-bottom: 4px;
+    }
+    .week-dot.is-on span { background: var(--primary); }
+    .week-dot small { font-size: 0.65rem; color: var(--muted); font-weight: 700; }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 14px 0;
+    }
+    .stat-box {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .stat-box b { display: block; font-size: 1.35rem; }
+    .stat-box small { color: var(--muted); font-weight: 700; font-size: 0.75rem; }
+    .parent-note {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 0.88rem;
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+    .share-ok { text-align: center; font-size: 0.8rem; font-weight: 700; color: var(--ok); min-height: 1.2em; margin-top: 8px; }
+
+    .mic {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      border: 3px solid var(--primary);
+      background: #fff;
+      color: var(--primary);
+      font-size: 0.85rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+    }
+    .mic.is-live {
+      background: var(--primary);
+      color: #fff;
+    }
+    .speak-heard {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      min-height: 1.3em;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -407,7 +565,21 @@
           <div class="en" id="meaning-ex-en"></div>
           <div class="ja" id="meaning-ex-ja"></div>
         </div>
+        <button type="button" class="cta" id="btn-to-speak">つづける（いう）</button>
+      </div>
+
+      <div id="phase-speak" hidden>
+        <div class="prompt">
+          <div class="en" id="speak-en"></div>
+          <div class="ja" id="speak-ja"></div>
+        </div>
+        <button type="button" class="speaker" id="btn-replay-speak" aria-label="お手本を聞く">▶</button>
+        <p class="cta-sub" style="margin-top:-8px;">お手本を聞いて、マネして言う</p>
+        <button type="button" class="mic" id="btn-mic">マイク</button>
+        <div class="speak-heard" id="speak-heard"></div>
+        <div class="feedback" id="speak-feedback"></div>
         <button type="button" class="cta" id="btn-to-write">つづける（書く）</button>
+        <button type="button" class="ghost" id="btn-speak-skip" style="width:100%;">口に出したのでつぎへ</button>
       </div>
 
       <div id="phase-write" hidden>
@@ -431,11 +603,64 @@
         <p id="result-weak" style="margin-top:8px;"></p>
       </div>
       <ul class="result-words" id="result-words"></ul>
+      <p id="result-dex-note" class="cta-sub"></p>
       <button type="button" class="cta" id="btn-result-home">ホームへ</button>
       <p class="cta-sub">習慣は、昨日と同じ儀式から。</p>
-      <button type="button" class="ghost" id="btn-result-again" style="width:100%;margin-top:8px;">もう1セット</button>
+      <button type="button" class="ghost" id="btn-result-dex" style="width:100%;margin-top:8px;">図鑑を見る</button>
+      <button type="button" class="ghost" id="btn-result-again" style="width:100%;margin-top:4px;">もう1セット</button>
+    </section>
+
+    <section id="screen-dex" hidden>
+      <p class="brand">コレクション</p>
+      <h1 class="title">単語図鑑</h1>
+      <p class="dex-count" id="dex-count"></p>
+      <div class="filters" id="dex-filters"></div>
+      <div id="dex-list"></div>
+    </section>
+
+    <section id="screen-parent" hidden>
+      <p class="brand">おうちの人へ</p>
+      <h1 class="title">今週の5分</h1>
+      <p class="cta-sub" style="text-align:left;margin-top:8px;" id="week-range"></p>
+      <div class="week-dots" id="week-dots"></div>
+      <div class="stat-grid">
+        <div class="stat-box"><b id="week-days">0</b><small>学習した日</small></div>
+        <div class="stat-box"><b id="week-sessions">0</b><small>セット数</small></div>
+        <div class="stat-box"><b id="week-master">0</b><small>定着した語</small></div>
+        <div class="stat-box"><b id="week-speak">0</b><small>声に出した語</small></div>
+      </div>
+      <div class="section-label">単元マップ</div>
+      <div id="parent-units"></div>
+      <div class="section-label">今週のレポート</div>
+      <div class="parent-note" id="parent-note"></div>
+      <button type="button" class="cta" id="btn-share">親に送る</button>
+      <p class="share-ok" id="share-ok"></p>
     </section>
   </div>
+
+  <div class="sheet" id="sheet-word" hidden>
+    <div class="sheet-card">
+      <p class="flag" id="sheet-st"></p>
+      <div class="prompt">
+        <div class="en" id="sheet-en"></div>
+        <div class="ja" id="sheet-ja"></div>
+      </div>
+      <button type="button" class="speaker" id="sheet-speak-btn" aria-label="発音を聞く">▶</button>
+      <div class="example">
+        <div class="en" id="sheet-ex-en"></div>
+        <div class="ja" id="sheet-ex-ja"></div>
+      </div>
+      <button type="button" class="cta" id="sheet-mic" style="margin-top:0;">マネして言う</button>
+      <p class="feedback" id="sheet-mic-fb"></p>
+      <button type="button" class="ghost" id="sheet-close" style="width:100%;">閉じる</button>
+    </div>
+  </div>
+
+  <nav class="tabbar" id="tabbar" hidden>
+    <button type="button" class="tab-btn" data-tab="home" id="tab-home">ホーム</button>
+    <button type="button" class="tab-btn" data-tab="dex" id="tab-dex">図鑑</button>
+    <button type="button" class="tab-btn" data-tab="parent" id="tab-parent">おうち</button>
+  </nav>
 
   <script src="./data.js"></script>
   <script src="./app.js"></script>
