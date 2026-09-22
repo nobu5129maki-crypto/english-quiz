@@ -1,4 +1,4 @@
-const CACHE_NAME = "five-min-words-v4";
+const CACHE_NAME = "five-min-words-v5";
 const urlsToCache = [
   "./",
   "./index.html",
@@ -33,10 +33,12 @@ self.addEventListener("fetch", (event) => {
 
   if (isDoc) {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: "no-cache" })
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
+          }
           return res;
         })
         .catch(() => caches.match(req).then((hit) => hit || caches.match("./index.html")))

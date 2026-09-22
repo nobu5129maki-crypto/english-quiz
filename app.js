@@ -97,8 +97,12 @@
   }
 
   function save() {
-    localStorage.setItem(STORE_PROGRESS, JSON.stringify(progress));
-    localStorage.setItem(STORE_META, JSON.stringify(meta));
+    try {
+      localStorage.setItem(STORE_PROGRESS, JSON.stringify(progress));
+      localStorage.setItem(STORE_META, JSON.stringify(meta));
+    } catch (error) {
+      console.warn("save failed", error);
+    }
   }
 
   function unitMasteredCount(unitId) {
@@ -202,7 +206,7 @@
     const today = ymd();
     return WORDS.filter((w) => {
       const p = getProg(w.id);
-      return p.box === 1 || (p.box > 0 && p.due <= today);
+      return p.box > 0 && p.due <= today;
     }).length;
   }
 
@@ -270,7 +274,7 @@
   function speak(text, rate) {
     return new Promise(function (resolve) {
       if (!("speechSynthesis" in window) || !text) {
-        resolve();
+        resolve(false);
         return;
       }
       speechSynthesis.cancel();
@@ -282,15 +286,18 @@
       u.volume = 1;
       if (selectedVoice) u.voice = selectedVoice;
       let done = false;
-      const finish = function () {
+      const finish = function (ok) {
         if (done) return;
         done = true;
-        resolve();
+        resolve(ok !== false);
       };
-      u.onend = finish;
-      u.onerror = finish;
+      u.onend = function () { finish(true); };
+      u.onerror = function (ev) {
+        const reason = ev && ev.error;
+        finish(reason === "interrupted" || reason === "canceled");
+      };
       const fallback = Math.min(10000, 900 + String(text).length * 85);
-      setTimeout(finish, fallback);
+      setTimeout(function () { finish(true); }, fallback);
       speechSynthesis.speak(u);
     });
   }
@@ -314,29 +321,59 @@
     return session.words[session.index];
   }
 
+  function isConfusableJa(a, b) {
+    const x = String(a || "");
+    const y = String(b || "");
+    if (!x || !y || x === y) return true;
+    if (x.length >= 2 && y.length >= 2 && (x.includes(y) || y.includes(x))) return true;
+    return false;
+  }
+
   function closeOptions(word) {
-    const same = WORDS.filter((w) => w.unit === word.unit && w.ja !== word.ja);
+    const same = WORDS.filter((w) => w.unit === word.unit && !isConfusableJa(w.ja, word.ja));
     let pool = shuffle(same);
     if (pool.length < 3) {
-      const extra = WORDS.filter((w) => w.ja !== word.ja && !pool.includes(w) && w.id !== word.id);
+      const extra = WORDS.filter((w) => w.id !== word.id && !isConfusableJa(w.ja, word.ja) && !pool.includes(w));
       pool = pool.concat(shuffle(extra));
     }
-    const wrong = pool.slice(0, 3).map((w) => w.ja);
+    const wrong = [];
+    const used = [word.ja];
+    pool.forEach((w) => {
+      if (wrong.length >= 3) return;
+      if (used.some((ja) => isConfusableJa(ja, w.ja))) return;
+      used.push(w.ja);
+      wrong.push(w.ja);
+    });
     return shuffle([word.ja, ...wrong]);
   }
 
   function normalizeSpell(s) {
     return String(s || "")
+      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+      .replace(/　/g, " ")
       .trim()
       .toLowerCase()
-      .replace(/[.?!,]/g, "")
-      .replace(/\s+/g, " ");
+      .replace(/['’‘ʼ＇`´]/g, "")
+      .replace(/[.?!,。、]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function spellKey(s) {
+    return normalizeSpell(s).replace(/ /g, "");
   }
 
   function hintFor(en) {
     const t = en.trim();
     if (t.length <= 2) return t[0] + "_";
-    return t[0] + "_".repeat(Math.max(1, t.length - 2)) + t.slice(-1);
+    return t
+      .split("")
+      .map((ch, i) => {
+        if (i === 0 || i === t.length - 1) return ch;
+        if (/\s/.test(ch) || ch === "'" || ch === "’") return ch;
+        return "_";
+      })
+      .join("");
   }
 
   function speakMatch(heard, target) {
@@ -577,7 +614,19 @@
       btn.onclick = () => onListenChoice(ja === w.ja, btn);
       box.appendChild(btn);
     });
-    speak(w.en);
+    const mystery = $("listen-mystery");
+    const fallbackNote = $("listen-fallback");
+    if (mystery) mystery.textContent = "?";
+    if (fallbackNote) fallbackNote.hidden = true;
+    const wordId = w.id;
+    speak(w.en).then((ok) => {
+      if (ok) return;
+      if (!session || session.phase !== "listen") return;
+      const cur = currentWord();
+      if (!cur || cur.id !== wordId) return;
+      if (mystery) mystery.textContent = cur.en;
+      if (fallbackNote) fallbackNote.hidden = false;
+    });
   }
 
   function onListenChoice(ok, btn) {
@@ -693,7 +742,7 @@
     const val = input.value;
     if (!normalizeSpell(val)) return;
     isChecking = true;
-    const ok = normalizeSpell(val) === normalizeSpell(w.en);
+    const ok = spellKey(val) === spellKey(w.en);
     session.writeOk[w.id] = ok;
     input.disabled = true;
     $("write-feedback").textContent = ok ? "せいかい" : "こたえは " + w.en;
@@ -748,7 +797,7 @@
   function wordStatus(w) {
     const p = getProg(w.id);
     if (p.box >= MASTER_BOX) return "mastered";
-    if (p.box === 1 || (p.seen && p.box > 0)) return "weak";
+    if (p.box > 0 && p.due <= ymd()) return "weak";
     if (p.seen || p.box > 0) return "seen";
     return "locked";
   }
@@ -994,7 +1043,8 @@
     $("spell-input").addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        onWriteSubmit();
+        if (!$("write-reveal").hidden) advanceAfterWrite();
+        else onWriteSubmit();
       }
     });
     $("btn-hint").addEventListener("click", () => {
