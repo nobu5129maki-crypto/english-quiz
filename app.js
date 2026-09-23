@@ -16,6 +16,7 @@
 
   let session = null;
   let selectedVoice = null;
+  let voiceWaiters = [];
   let isChecking = false;
   let combo = 0;
   let dexFilter = "all";
@@ -254,37 +255,142 @@
     });
   }
 
-  function selectVoice() {
-    const voices = speechSynthesis.getVoices();
-    const en = voices.filter((v) => v.lang && v.lang.startsWith("en"));
-    if (!en.length) return null;
-    const preferred = ["Google US English", "Microsoft Zira", "Microsoft David", "Samantha", "Alex", "Karen", "Daniel"];
-    for (const name of preferred) {
-      const v = en.find((x) => x.name.includes(name));
-      if (v) return v;
+  const NATIVE_VOICE = "en-US-AvaNeural";
+  const NATIVE_AUDIO = Object.create(null);
+  WORDS.forEach((w) => {
+    if (w.en && !NATIVE_AUDIO[w.en]) NATIVE_AUDIO[w.en] = "./audio/" + w.id + ".mp3";
+    if (w.exampleEn && !NATIVE_AUDIO[w.exampleEn]) {
+      NATIVE_AUDIO[w.exampleEn] = "./audio/" + w.id + "-ex.mp3";
     }
-    return en.find((v) => v.lang === "en-US") || en.find((v) => v.lang === "en-GB") || en[0];
+  });
+  let currentAudio = null;
+
+  function stopSpoken() {
+    if (currentAudio) {
+      currentAudio.onended = null;
+      currentAudio.onerror = null;
+      currentAudio.pause();
+      currentAudio.src = "";
+      currentAudio = null;
+    }
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+  }
+
+  function playNative(text) {
+    const url = NATIVE_AUDIO[text];
+    if (!url) return Promise.resolve(false);
+    stopSpoken();
+    return new Promise((resolve) => {
+      const audio = new Audio(url);
+      currentAudio = audio;
+      let done = false;
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
+        if (currentAudio === audio) currentAudio = null;
+        resolve(ok);
+      };
+      audio.onended = () => finish(true);
+      audio.onerror = () => finish(false);
+      document.documentElement.dataset.ttsVoice = NATIVE_VOICE;
+      const played = audio.play();
+      if (played && typeof played.catch === "function") played.catch(() => finish(false));
+    });
+  }
+
+  /** ネイティブに近い英語音声ほど点数を高くする */
+  function voiceRank(v) {
+    const name = String((v && v.name) || "");
+    const lang = String((v && v.lang) || "").toLowerCase().replace(/_/g, "-");
+    if (!lang.startsWith("en")) return -1000;
+    let score = 0;
+    if (lang === "en-us") score += 40;
+    else if (lang.startsWith("en-us")) score += 36;
+    else if (lang === "en-gb") score += 28;
+    else score += 8;
+    if (/natural|neural|premium|enhanced/i.test(name)) score += 120;
+    if (/google us english/i.test(name)) score += 90;
+    if (/google uk english/i.test(name)) score += 70;
+    if (/\b(samantha|alex|allison|ava|nicky|evan|serena|moira|daniel)\b/i.test(name)) score += 60;
+    if (/\b(zira|david|mark|hazel|george|ravi|heera)\b/i.test(name) && !/natural|neural/i.test(name)) {
+      score -= 50;
+    }
+    return score;
+  }
+
+  function rankedEnglishVoices() {
+    if (!("speechSynthesis" in window)) return [];
+    return speechSynthesis
+      .getVoices()
+      .map((v) => ({ v: v, score: voiceRank(v) }))
+      .filter((x) => x.score > -500)
+      .sort((a, b) => b.score - a.score)
+      .map((x) => x.v);
+  }
+
+  function selectVoice() {
+    return rankedEnglishVoices()[0] || null;
   }
 
   function initVoices() {
+    if (!("speechSynthesis" in window)) return;
     const voices = speechSynthesis.getVoices();
-    if (voices.length) selectedVoice = selectVoice();
+    if (!voices.length) return;
+    selectedVoice = selectVoice();
+    if (selectedVoice) document.documentElement.dataset.ttsVoice = selectedVoice.name;
+    const pending = voiceWaiters;
+    voiceWaiters = [];
+    pending.forEach((fn) => fn());
+  }
+
+  function voicesReady() {
+    return new Promise((resolve) => {
+      if (!("speechSynthesis" in window)) {
+        resolve();
+        return;
+      }
+      initVoices();
+      if (speechSynthesis.getVoices().length) {
+        resolve();
+        return;
+      }
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      voiceWaiters.push(done);
+      setTimeout(done, 900);
+    });
   }
 
   function speak(text, rate) {
+    return playNative(text).then((ok) => {
+      if (ok) return true;
+      return voicesReady().then(() => speakNow(text, rate, 0));
+    });
+  }
+
+  function speakNow(text, rate, attempt) {
     return new Promise(function (resolve) {
       if (!("speechSynthesis" in window) || !text) {
         resolve(false);
         return;
       }
+      const voices = rankedEnglishVoices();
+      const voice = voices[attempt] || null;
       speechSynthesis.cancel();
-      initVoices();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = "en-US";
-      u.rate = rate || 0.92;
+      u.lang = (voice && voice.lang) || "en-US";
+      u.rate = rate == null ? 1 : rate;
       u.pitch = 1;
       u.volume = 1;
-      if (selectedVoice) u.voice = selectedVoice;
+      if (voice) {
+        u.voice = voice;
+        selectedVoice = voice;
+        document.documentElement.dataset.ttsVoice = voice.name;
+      }
       let done = false;
       const finish = function (ok) {
         if (done) return;
@@ -294,22 +400,33 @@
       u.onend = function () { finish(true); };
       u.onerror = function (ev) {
         const reason = ev && ev.error;
-        finish(reason === "interrupted" || reason === "canceled");
+        if (reason === "interrupted" || reason === "canceled") {
+          finish(true);
+          return;
+        }
+        if (attempt < 2 && voices[attempt + 1]) {
+          done = true;
+          speakNow(text, rate, attempt + 1).then(resolve);
+          return;
+        }
+        finish(false);
       };
       const fallback = Math.min(10000, 900 + String(text).length * 85);
       setTimeout(function () { finish(true); }, fallback);
-      speechSynthesis.speak(u);
+      setTimeout(function () {
+        if (!done) speechSynthesis.speak(u);
+      }, 40);
     });
   }
 
   function speakExample(w) {
     if (!w || !w.exampleEn) return Promise.resolve();
-    return speak(w.exampleEn, 0.86);
+    return speak(w.exampleEn, 0.97);
   }
 
   function speakThenExample(w) {
     if (!w) return Promise.resolve();
-    return speak(w.en, 0.92).then(function () {
+    return speak(w.en, 1).then(function () {
       return new Promise(function (r) { setTimeout(r, 380); });
     }).then(function () {
       if (w.exampleEn) return speakExample(w);
@@ -500,7 +617,7 @@
     session = null;
     stopRec();
     closeSheet();
-    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    stopSpoken();
     renderHome();
     showScreen("home");
   }
@@ -765,7 +882,7 @@
 
   function advanceAfterWrite() {
     if (!session || session.phase !== "write") return;
-    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    stopSpoken();
     isChecking = false;
     session.index += 1;
     if (session.index >= session.words.length) finishLesson();

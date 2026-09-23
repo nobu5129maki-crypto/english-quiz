@@ -1,4 +1,4 @@
-const CACHE_NAME = "five-min-words-v5";
+const CACHE_NAME = "five-min-words-v6";
 const urlsToCache = [
   "./",
   "./index.html",
@@ -42,6 +42,21 @@ self.addEventListener("fetch", (event) => {
           return res;
         })
         .catch(() => caches.match(req).then((hit) => hit || caches.match("./index.html")))
+    );
+    return;
+  }
+
+  if (/\.mp3$/i.test(new URL(req.url).pathname)) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
+          }
+          return res;
+        })
+        .catch(() => caches.match(req))
     );
     return;
   }
